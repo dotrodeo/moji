@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: moji
       POSTGRES_DB: moji
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes:
       - ./.pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -15,6 +15,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # The game server (serves API + built client). The Cloudflare Tunnel public
   # hostname should target this service by name: http://moji:3000
