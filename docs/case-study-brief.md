@@ -35,7 +35,7 @@ Use these; they are all checked. Do not invent others.
 | Session length | ~35s per player per round; an 8-player, 3-round game runs ~18 minutes |
 | Deploy | Single multi-stage Docker image (server serves the built client) behind a Cloudflare Tunnel |
 
-**Stack:** React 18 + TypeScript + Vite + Tailwind (client) · Node 20 + Express + Socket.IO +
+**Stack:** React 18 + TypeScript + Vite + Tailwind (client) · Node 24 + Express + Socket.IO +
 TypeScript (server) · PostgreSQL via Drizzle ORM · Vitest · Docker Compose.
 
 ## 3. The architecture story (the strongest technical material)

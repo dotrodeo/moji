@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ── Build stage: install workspaces, build shared + client + server ──
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 # Install deps first (better layer caching). Lockfile is required by `npm ci`.
@@ -19,7 +19,7 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # ── Runtime stage: single process serves API + built client ──
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
