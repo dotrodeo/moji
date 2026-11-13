@@ -169,3 +169,23 @@ The repo is **public**, and the live site is linked from the author's résumé, 
 the code or opening `/solo` cold is a real audience, not a hypothetical one. Keep secrets out of
 the repo, and treat a broken landing page or solo game as more urgent than a rough edge in a room
 of friends.
+
+## Shipping changes
+
+- **`main` takes merges only, and only green ones.** Branch protection requires both CI jobs —
+  `Typecheck, test, build (Node 20)` and `(Node 24)` — and applies to admins, so a direct push to
+  `main` is rejected. Work on a branch and merge through a PR. The required check names include the
+  Node version: change the matrix in `.github/workflows/ci.yml` and the branch protection rule has
+  to change with it, or every PR waits forever on a check that no longer runs.
+- **CI is the test bed for dependency changes.** Lockfile-only updates (`npm install
+  --package-lock-only`, `npm audit fix --package-lock-only`) plus a CI run avoid a local
+  `node_modules` entirely.
+- **Node 20 is what production runs, and it is past end of life.** It stays in CI until the
+  Dockerfile moves to `node:24-alpine`. That is also why vitest is pinned to 4.x: vitest 5 needs
+  Node 22+.
+- **Known, accepted audit findings:** four moderate advisories in drizzle-kit's deprecated
+  `@esbuild-kit/*` → `esbuild` chain. The esbuild advisory covers its dev server, which drizzle-kit
+  never starts, and drizzle-kit is a dev-only tool run by hand. npm's suggested "fix" is a downgrade
+  to drizzle-kit 0.18. Revisit when drizzle-kit 1.0 is stable. `npm audit --omit=dev` must stay at 0.
+- **Deploying** is a rebuild of the one image (see `README.md`). Live room state is in memory, so
+  recreating the `moji` container ends games in progress: check nobody is playing first.
