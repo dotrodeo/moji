@@ -180,6 +180,12 @@ of friends.
 - **One Node version, in two places.** `.nvmrc` drives CI (`node-version-file`) and local `nvm use`;
   the Dockerfile's `node:<major>-alpine` can't read it. Bump them together. Production moved
   20 → 24 in November 2026, when 20 was past end of life.
+- **Dependency install scripts are off.** npm on current Node 24 skips them unless
+  `package.json` → `allowScripts` approves the package. The only ones in the tree are esbuild's
+  postinstall (three copies), which just verifies a binary that already arrives through esbuild's
+  platform-specific optional dependency, so they are explicitly denied (`"esbuild": false`). A new
+  dependency that needs its script to work will fail in CI, not silently: approve it by name with
+  `npm install-scripts approve <pkg>` and say why in the commit.
 - **CI is the test bed for dependency changes.** Lockfile-only updates (`npm install
   --package-lock-only`, `npm audit fix --package-lock-only`) plus a CI run avoid a local
   `node_modules` entirely.
