@@ -13,8 +13,8 @@ one at a time while everyone races to guess. No app, no signup — a host create
 One-line pitch already in the product copy: *"Explain a movie in ten emoji. Your friends get thirty
 seconds."*
 
-**Status:** working, playtested (August 2026), not publicly launched. Solo project. Repo is
-private/UNLICENSED.
+**Status:** working, playtested (August 2026), not publicly launched. Solo project. The repo is
+public on GitHub but unlicensed (all rights reserved).
 
 ## 2. Verifiable facts and numbers
 
@@ -296,6 +296,5 @@ than prose does.
   to hire for this, and calling it AI invites exactly the question it fails.
 - **Don't claim the bot is unbeatable or especially strong.** It loses often, and losing honestly is
   the designed behaviour. Its skill is a set of constants, not a result.
-- Two small doc drifts if precision matters: `docs/content-guidelines.md` says "15" packs where the
-  code has 17, and `README.md` links a design doc (`i-want-to-build-dazzling-lemon.md`) that isn't in
-  the repo — both are known and noted in `CLAUDE.md`.
+- The original design doc (`i-want-to-build-dazzling-lemon.md`) that code comments cite by section
+  is lost. Don't quote or describe it beyond what `CLAUDE.md` says.

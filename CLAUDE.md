@@ -157,7 +157,15 @@ loop is ~35s per player per round, so an 8-player game runs about 18 minutes.
 
 ## Known gap
 
-`README.md` points at a design doc, `~/.claude/plans/i-want-to-build-dazzling-lemon.md`. Code
-comments cite its sections (§3 state machine, §6 dealing, §7 rules & anti-cheat), but the file is
-not in this repo and is not on every machine. If you have a copy, commit it under `docs/` and fix
-the README link.
+Code comments cite sections of the original design doc (§3 state machine, §5 persistence, §6
+dealing, §7 rules & anti-cheat). That doc, `i-want-to-build-dazzling-lemon.md`, is **lost** (checked
+November 2026) — there is no copy to recover. Treat a `§n` reference as a pointer to the topic, and
+this file plus the code as the authority. When you touch code with one, replace it with the actual
+reasoning if it isn't obvious.
+
+## Public exposure
+
+The repo is **public**, and the live site is linked from the author's résumé, so a stranger reading
+the code or opening `/solo` cold is a real audience, not a hypothetical one. Keep secrets out of
+the repo, and treat a broken landing page or solo game as more urgent than a rough edge in a room
+of friends.

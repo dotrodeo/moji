@@ -30,8 +30,10 @@ services:
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3000}
       SESSION_SECRET: ${SESSION_SECRET:-dev-insecure-secret-change-me}
       DATABASE_URL: postgres://moji:moji@db:5432/moji
+    # Loopback only: the tunnel reaches this by service name (http://moji:3000),
+    # so the host port is just for local checks. The host has no firewall.
     ports:
-      - '3000:3000'
+      - '127.0.0.1:3000:3000'
     depends_on:
       db:
         condition: service_healthy

@@ -10,8 +10,8 @@ each other's.
 - [`docs/case-study-brief.md`](docs/case-study-brief.md) — a written-up tour of the project for
   external readers.
 
-The original design doc (`i-want-to-build-dazzling-lemon.md`) is not in this repo; code comments
-still cite its sections (§3 state machine, §5 persistence, §6 dealing, §7 rules & anti-cheat).
+Code comments cite sections of the original design doc (§3 state machine, §5 persistence, §6
+dealing, §7 rules & anti-cheat). That doc is lost; `CLAUDE.md` and the code are the record now.
 
 ## How it plays
 
