@@ -120,6 +120,9 @@ Everything else is Socket.IO. See `packages/shared/src/events.ts` for the event 
 | `npm run db:seed` | Seed categories + prompts |
 | `npm start` | Run the built server (serves the built client) |
 
+CI (`.github/workflows/ci.yml`) runs `npm ci`, `typecheck`, `test` and `build` on every PR and every
+push to `main`, on Node 20 (what the image ships) and Node 24 (the upgrade target).
+
 ## Layout
 
 ```
@@ -127,6 +130,7 @@ packages/
   shared/   # @moji/shared — types, socket events, scoring, hints, emoji rules
   server/   # @moji/server — http + socket.io, state machine, content, bots, db, seams
   client/   # @moji/client — react app
+.github/workflows/     # CI: typecheck, test, build on Node 20 + 24
 docs/                  # content guidelines, case-study brief
 Dockerfile             # multi-stage: build client+server, run server
 docker-compose.yml     # db + moji server (+ cloudflared profile)
