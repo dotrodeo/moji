@@ -183,6 +183,13 @@ of friends.
 - **Node 20 is what production runs, and it is past end of life.** It stays in CI until the
   Dockerfile moves to `node:24-alpine`. That is also why vitest is pinned to 4.x: vitest 5 needs
   Node 22+.
+- **The root `esbuild` devDependency is load-bearing, not a leftover.** vite 8 takes esbuild
+  `^0.27 || ^0.28` as an *optional peer*. Without a hoisted 0.28, the hoisted copy is drizzle-kit's
+  0.25, and npm 10 (Node 20's, and the Dockerfile's) treats the peer as missing while npm 11
+  doesn't, so a lockfile written by one fails `npm ci` under the other. Generating a lockfile with
+  npm 10 directly crashes (`Cannot read properties of null (reading 'edgesOut')`, an arborist bug on
+  vitest 4's peer set). Write lockfiles with npm 11 and check that `npx npm@10 ci` accepts them
+  until Node 20 is gone.
 - **Known, accepted audit findings:** four moderate advisories in drizzle-kit's deprecated
   `@esbuild-kit/*` → `esbuild` chain. The esbuild advisory covers its dev server, which drizzle-kit
   never starts, and drizzle-kit is a dev-only tool run by hand. npm's suggested "fix" is a downgrade
