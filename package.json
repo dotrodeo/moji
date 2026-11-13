@@ -31,7 +31,8 @@
   "devDependencies": {
     "concurrently": "^9.1.0",
     "drizzle-orm": "^0.45.4",
+    "esbuild": "^0.28.2",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.12"
   }
 }
