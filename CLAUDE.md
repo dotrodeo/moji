@@ -183,8 +183,9 @@ of friends.
 - **Dependency install scripts are off.** npm on current Node 24 skips them unless
   `package.json` → `allowScripts` approves the package. The only ones in the tree are esbuild's
   postinstall (three copies), which just verifies a binary that already arrives through esbuild's
-  platform-specific optional dependency, so they are explicitly denied (`"esbuild": false`). A new
-  dependency that needs its script to work will fail in CI, not silently: approve it by name with
+  platform-specific optional dependency, so they are explicitly denied (`"esbuild": false`). When
+  you add a dependency, read the end of `npm install` output: npm lists any script it skipped, and
+  only warns. If the package needs it (native builds, binary downloads), approve it by name with
   `npm install-scripts approve <pkg>` and say why in the commit.
 - **CI is the test bed for dependency changes.** Lockfile-only updates (`npm install
   --package-lock-only`, `npm audit fix --package-lock-only`) plus a CI run avoid a local
