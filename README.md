@@ -56,7 +56,7 @@ it can move to Redis later. Everything sent to a client goes through the role-fi
 
 ## Prerequisites
 
-- Node 20+
+- Node 24 (`nvm use` reads `.nvmrc`)
 - Docker (for Postgres locally, and for the production image)
 
 ## Local development
@@ -121,7 +121,7 @@ Everything else is Socket.IO. See `packages/shared/src/events.ts` for the event 
 | `npm start` | Run the built server (serves the built client) |
 
 CI (`.github/workflows/ci.yml`) runs `npm ci`, `typecheck`, `test` and `build` on every PR and every
-push to `main`, on Node 20 (what the image ships) and Node 24 (the upgrade target).
+push to `main`, on the Node version in `.nvmrc` (the same major the Dockerfile ships).
 
 ## Layout
 
@@ -130,7 +130,7 @@ packages/
   shared/   # @moji/shared — types, socket events, scoring, hints, emoji rules
   server/   # @moji/server — http + socket.io, state machine, content, bots, db, seams
   client/   # @moji/client — react app
-.github/workflows/     # CI: typecheck, test, build on Node 20 + 24
+.github/workflows/     # CI: typecheck, test, build
 docs/                  # content guidelines, case-study brief
 Dockerfile             # multi-stage: build client+server, run server
 docker-compose.yml     # db + moji server (+ cloudflared profile)

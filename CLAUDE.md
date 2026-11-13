@@ -172,24 +172,24 @@ of friends.
 
 ## Shipping changes
 
-- **`main` takes merges only, and only green ones.** Branch protection requires both CI jobs —
-  `Typecheck, test, build (Node 20)` and `(Node 24)` — and applies to admins, so a direct push to
-  `main` is rejected. Work on a branch and merge through a PR. The required check names include the
-  Node version: change the matrix in `.github/workflows/ci.yml` and the branch protection rule has
-  to change with it, or every PR waits forever on a check that no longer runs.
+- **`main` takes merges only, and only green ones.** Branch protection requires the CI job
+  `Typecheck, test, build` and applies to admins, so a direct push to `main` is rejected. Work on a
+  branch and merge through a PR. The job name is deliberately free of the Node version; if you
+  rename it, change the branch protection rule in the same breath, or every PR waits forever on a
+  check that no longer runs.
+- **One Node version, in two places.** `.nvmrc` drives CI (`node-version-file`) and local `nvm use`;
+  the Dockerfile's `node:<major>-alpine` can't read it. Bump them together. Production moved
+  20 → 24 in November 2026, when 20 was past end of life.
+- **Dependency install scripts are off.** npm on current Node 24 skips them unless
+  `package.json` → `allowScripts` approves the package. The only ones in the tree are esbuild's
+  postinstall (three copies), which just verifies a binary that already arrives through esbuild's
+  platform-specific optional dependency, so they are explicitly denied (`"esbuild": false`). When
+  you add a dependency, read the end of `npm install` output: npm lists any script it skipped, and
+  only warns. If the package needs it (native builds, binary downloads), approve it by name with
+  `npm install-scripts approve <pkg>` and say why in the commit.
 - **CI is the test bed for dependency changes.** Lockfile-only updates (`npm install
   --package-lock-only`, `npm audit fix --package-lock-only`) plus a CI run avoid a local
   `node_modules` entirely.
-- **Node 20 is what production runs, and it is past end of life.** It stays in CI until the
-  Dockerfile moves to `node:24-alpine`. That is also why vitest is pinned to 4.x: vitest 5 needs
-  Node 22+.
-- **The root `esbuild` devDependency is load-bearing, not a leftover.** vite 8 takes esbuild
-  `^0.27 || ^0.28` as an *optional peer*. Without a hoisted 0.28, the hoisted copy is drizzle-kit's
-  0.25, and npm 10 (Node 20's, and the Dockerfile's) treats the peer as missing while npm 11
-  doesn't, so a lockfile written by one fails `npm ci` under the other. Generating a lockfile with
-  npm 10 directly crashes (`Cannot read properties of null (reading 'edgesOut')`, an arborist bug on
-  vitest 4's peer set). Write lockfiles with npm 11 and check that `npx npm@10 ci` accepts them
-  until Node 20 is gone.
 - **Known, accepted audit findings:** four moderate advisories in drizzle-kit's deprecated
   `@esbuild-kit/*` → `esbuild` chain. The esbuild advisory covers its dev server, which drizzle-kit
   never starts, and drizzle-kit is a dev-only tool run by hand. npm's suggested "fix" is a downgrade

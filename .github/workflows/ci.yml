@@ -16,23 +16,19 @@ permissions:
 
 jobs:
   check:
-    name: Typecheck, test, build (Node ${{ matrix.node }})
+    # Branch protection requires this job by name. Keep the name free of the Node
+    # version so a runtime upgrade doesn't strand PRs on a check that never runs.
+    name: Typecheck, test, build
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        # 20 is what the Dockerfile ships. 24 is the upgrade target: Node 20 is
-        # past end of life, and this shows whether the move is safe before
-        # anyone rebuilds the production image.
-        node: [20, 24]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: ${{ matrix.node }}
+          # The same major the Dockerfile ships. Change them together.
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run typecheck
