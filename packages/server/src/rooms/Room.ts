@@ -251,6 +251,13 @@ export class Room {
     }
     if (wasHost) this.migrateHost();
     this.changed();
+    // Someone actually left (not a blip: a disconnect keeps the seat for a
+    // grace period). A phase waiting on "everyone" may be done now.
+    if (this.phase === 'GUESSING' && this.active && this.unsolvedGuessers() === 0) {
+      this.endGuessing();
+    } else if (this.phase === 'CLUE_CREATION' && !this.anyoneStillBuilding()) {
+      this.startReveals();
+    }
   }
 
   private migrateHost(): void {
@@ -385,11 +392,14 @@ export class Room {
     this.changed();
     // Early-finish: advance as soon as every CONNECTED player has submitted, so a
     // disconnected/absent player can't stall the round for everyone.
-    const stillBuilding = [...this.assignments.keys()].some((id) => {
+    if (!this.anyoneStillBuilding()) this.startReveals();
+  }
+
+  private anyoneStillBuilding(): boolean {
+    return [...this.assignments.keys()].some((id) => {
       const player = this.players.get(id);
       return player?.connection === 'CONNECTED' && !this.clues.has(id);
     });
-    if (!stillBuilding) this.startReveals();
   }
 
   submitGuess(playerId: string, text: string): GuessResult {
@@ -461,7 +471,7 @@ export class Room {
 
     if (correct) {
       this.changed(); // refresh solved counts / scoreboard
-      if (this.active.solvers.size >= this.eligibleGuessers()) this.endGuessing();
+      if (this.unsolvedGuessers() === 0) this.endGuessing();
     }
     return {
       accepted: true,
@@ -823,6 +833,27 @@ export class Room {
   /** Every player currently entitled to the answer — the chat's audience. */
   private answerAudience(): string[] {
     return [...this.players.values()].filter((p) => this.canSeeAnswer(p.id)).map((p) => p.id);
+  }
+
+  /**
+   * Connected players who could still solve the active clue. Guessing is over
+   * when this hits zero. Comparing solvers.size with eligibleGuessers() instead
+   * gets it wrong: solvers who have since left still count as solves, so the
+   * window could close on someone who was mid-guess.
+   */
+  private unsolvedGuessers(): number {
+    let n = 0;
+    for (const p of this.players.values()) {
+      if (
+        p.role === 'player' &&
+        p.id !== this.active?.authorId &&
+        p.connection === 'CONNECTED' &&
+        !this.active?.solvers.has(p.id)
+      ) {
+        n++;
+      }
+    }
+    return n;
   }
 
   private eligibleGuessers(): number {

@@ -132,3 +132,32 @@ describe('RoomManager: limits', () => {
     expect(() => mgr.command('s1', () => 0)).toThrow('Join a room first.');
   });
 });
+
+describe('RoomManager: reconnecting on a new socket', () => {
+  const connectionOf = (store: InMemoryRoomStore, code: string, id: string) =>
+    store.get(code)?.getSnapshot().players.find((p) => p.id === id)?.connection;
+
+  it('a late disconnect from the replaced socket leaves the player connected', () => {
+    const { store, mgr } = withStore();
+    const first = mgr.join('old', { displayName: 'Alice' });
+    mgr.join('new', { displayName: 'Alice', code: first.room.code, sessionToken: first.sessionToken });
+    mgr.handleDisconnect('old'); // the old connection finally times out
+    expect(connectionOf(store, first.room.code, first.playerId)).toBe('CONNECTED');
+  });
+
+  it('the replaced socket no longer acts for the player', () => {
+    const { mgr } = withStore();
+    const first = mgr.join('old', { displayName: 'Alice' });
+    mgr.join('new', { displayName: 'Alice', code: first.room.code, sessionToken: first.sessionToken });
+    expect(() => mgr.command('old', () => 0)).toThrow('Join a room first.');
+    expect(() => mgr.command('new', () => 0)).not.toThrow();
+  });
+
+  it('a disconnect from the current socket still marks the player disconnected', () => {
+    const { store, mgr } = withStore();
+    const first = mgr.join('only', { displayName: 'Alice' });
+    mgr.join('other', { displayName: 'Bob', code: first.room.code });
+    mgr.handleDisconnect('only');
+    expect(connectionOf(store, first.room.code, first.playerId)).toBe('DISCONNECTED');
+  });
+});

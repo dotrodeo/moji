@@ -905,3 +905,85 @@ describe('Room guess feed scope', () => {
     });
   });
 });
+
+/** Four-way content: an author plus three guessers, so solvers and leavers can be mixed. */
+const QUARTET_PROMPTS: PromptForPlay[] = [
+  ...TRIO_PROMPTS,
+  { id: 't4', answer: 'Shrek', accepted: ['Shrek'], blocklist: [], difficulty: 1 },
+];
+const quartetContent = {
+  ...trioContent,
+  dealRound: () => ({ category: { slug: 'movies', name: 'Movies' }, assignments: QUARTET_PROMPTS }),
+} as unknown as ContentProvider;
+
+function quartet(): { room: Room; players: Player[] } {
+  const room = new Room('QUAD', {
+    content: quartetContent,
+    scoring: DEFAULT_SCORING,
+    rng: () => 0.5,
+    hooks: noopHooks,
+  });
+  const players = ['Alice', 'Bob', 'Cara', 'Dan'].map((n) => room.addPlayer(n, 'player'));
+  room.configure(players[0]!.id, { rounds: 1 });
+  room.start(players[0]!.id);
+  vi.advanceTimersByTime(2000 + 3100);
+  return { room, players };
+}
+
+/** Submit every clue and land on the first clue's GUESSING phase. */
+function quartetAtGuessing() {
+  const { room, players } = quartet();
+  for (const p of players) room.submitClue(p.id, ['🎬']);
+  vi.advanceTimersByTime(1500);
+  const snap = room.getSnapshot();
+  const authorId = snap.active!.authorId;
+  const answer = snap.assignments.get(authorId)!;
+  const guessers = players.filter((p) => p.id !== authorId);
+  return { room, guessers, answer };
+}
+
+describe('Room early finish counts only who is still here', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('a solver who left does not close guessing on someone still guessing', () => {
+    const { room, guessers, answer } = quartetAtGuessing();
+    const [b, c] = guessers as [Player, Player, Player];
+    expect(room.submitGuess(b.id, answer).isCorrect).toBe(true);
+    room.removePlayer(b.id);
+    vi.advanceTimersByTime(600); // past the per-player guess interval
+    expect(room.submitGuess(c.id, answer).isCorrect).toBe(true);
+    // Dan has not solved and is still connected: the window must stay open.
+    expect(room.phase).toBe('GUESSING');
+  });
+
+  it('the last unsolved guesser leaving ends guessing', () => {
+    const { room, guessers, answer } = quartetAtGuessing();
+    const [b, c, d] = guessers as [Player, Player, Player];
+    room.submitGuess(b.id, answer);
+    room.submitGuess(c.id, answer);
+    expect(room.phase).toBe('GUESSING');
+    room.removePlayer(d.id);
+    expect(room.phase).not.toBe('GUESSING');
+  });
+
+  it('a brief disconnect does not end guessing for the player who dropped', () => {
+    const { room, guessers, answer } = quartetAtGuessing();
+    const [b, c, d] = guessers as [Player, Player, Player];
+    room.submitGuess(b.id, answer);
+    room.submitGuess(c.id, answer);
+    room.setConnection(d.id, 'DISCONNECTED');
+    expect(room.phase).toBe('GUESSING');
+  });
+
+  it('the last builder leaving starts the reveals', () => {
+    const { room, players } = quartet();
+    const [a, b, c, d] = players as [Player, Player, Player, Player];
+    room.submitClue(a.id, ['🎬']);
+    room.submitClue(b.id, ['🎬']);
+    room.submitClue(c.id, ['🎬']);
+    expect(room.phase).toBe('CLUE_CREATION');
+    room.removePlayer(d.id);
+    expect(room.phase).not.toBe('CLUE_CREATION');
+  });
+});

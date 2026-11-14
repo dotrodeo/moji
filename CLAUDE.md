@@ -26,6 +26,19 @@ Break these only on purpose.
   it is using: if production ever logs `socket address`, every visitor shares one limit. One
   socket is one player: joining elsewhere removes the socket's previous seat (after the new join
   succeeds), and leaving drops the socket's broadcast channel. Solo rooms can't be joined by code.
+- **A reconnect is a new socket, so the client must rejoin.** The server binds players to
+  sockets, and Socket.IO reconnects on a new socket id that has no binding: until it rejoins it
+  gets no `room:state` and every command fails. `useGame` re-sends `room:join` with the stored
+  code and token on every connect after the first, and if the room is gone it says so and returns
+  to the landing page. Server-side, a late `disconnect` from a socket the player has already
+  replaced is ignored, and resuming a seat drops the old socket's binding. Early finish
+  (everyone built / everyone solved) counts only connected players who haven't solved, and
+  re-checks when someone actually leaves, not when they blip: a brief drop must not cost anyone
+  their clue or their guess.
+- **Every command failure reaches the player.** `useGame` routes each command's rejection to the
+  app banner (the server's own message, or "didn't answer" after 10 s). A guess the server turns
+  away comes back as a result with a `reason`, shown inline. The Create screen runs the shared
+  clue rules live, so a clue the server would refuse says why before submit.
 - **The server is authoritative.** Everything sent to clients goes through the role-filtered
   serializer in `packages/server/src/realtime/serialize.ts`, so a clue's answer is physically
   absent from the payload of anyone not entitled to it — that is the author, anyone who has

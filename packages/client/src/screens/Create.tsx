@@ -5,7 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-import { MAX_EMOJIS, type RoomView } from '@moji/shared';
+import { MAX_EMOJIS, promptHasNumber, validateClue, type RoomView } from '@moji/shared';
 import type { GameClient } from '../useGame.js';
 import { EMOJI_CATS, type EmojiCat, type EmojiData, loadEmojiData } from '../data/emoji.js';
 import { Eyebrow, Panel, StickerButton, cn } from '../ui.js';
@@ -24,6 +24,15 @@ export function ClueScreen({ game, view }: { game: GameClient; view: RoomView })
   if (view.youSubmitted) return <Submitted view={view} />;
 
   const atCap = emojis.length >= MAX_EMOJIS;
+  // The same rules the server applies, run live, so a clue it would refuse
+  // (6️⃣ for "Big Hero 6", say) says why here instead of failing on submit.
+  const problems =
+    emojis.length === 0 || !view.yourPrompt
+      ? []
+      : validateClue(emojis, {
+          promptHasNumber: promptHasNumber(view.yourPrompt),
+          forbiddenTokens: [view.yourPrompt],
+        }).errors;
   const grid: string[] = !data ? [] : query.trim() ? data.search(query) : data.byCat[cat];
 
   const add = (e: string) => !atCap && setEmojis((cur) => [...cur, e]);
@@ -44,7 +53,7 @@ export function ClueScreen({ game, view }: { game: GameClient; view: RoomView })
     try {
       await game.submitClue(emojis);
     } catch {
-      /* surfaced via app error banner */
+      /* useGame shows the server's reason in the app banner */
     } finally {
       setBusy(false);
     }
@@ -159,14 +168,25 @@ export function ClueScreen({ game, view }: { game: GameClient; view: RoomView })
 
         {/* Submit (full width; below picker on mobile, spans on desktop) */}
         <div className="md:col-span-2">
+          {problems.length > 0 && (
+            <ul role="status" className="mb-3 space-y-1 text-sm font-semibold text-coral">
+              {problems.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          )}
           <StickerButton
             variant="lime"
             size="lg"
             className="w-full"
-            disabled={emojis.length === 0 || busy}
+            disabled={emojis.length === 0 || problems.length > 0 || busy}
             onClick={submit}
           >
-            {emojis.length === 0 ? 'Add at least 1 emoji' : 'Lock in Clue 🔒'}
+            {emojis.length === 0
+              ? 'Add at least 1 emoji'
+              : problems.length > 0
+                ? 'Fix the clue to lock it in'
+                : 'Lock in Clue 🔒'}
           </StickerButton>
         </div>
       </div>

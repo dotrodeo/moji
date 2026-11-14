@@ -7,11 +7,26 @@ import type {
   PublicGuess,
   RoomView,
 } from '@moji/shared';
-import { emitAck, socket } from './socket.js';
-import { clearToken, getToken, saveSession } from './session.js';
+import { NO_ANSWER, emitAck, socket } from './socket.js';
+import {
+  clearToken,
+  getStoredAvatar,
+  getStoredName,
+  getToken,
+  saveSession,
+  tokenRoomCode,
+} from './session.js';
+
+export const GAME_ENDED = 'That game has ended. The room closed while you were away.';
 
 export interface GameClient {
   connected: boolean;
+  /** Has this page ever reached the server? Tells "connecting" apart from "reconnecting". */
+  hasConnected: boolean;
+  /** The server can't be reached right now (a connect attempt failed). */
+  unreachable: boolean;
+  /** Bumps each time the room we were in turns out to be gone after a reconnect. */
+  roomLost: number;
   view: RoomView | null;
   feed: PublicGuess[];
   /** The solvers' side channel for the active clue; empty until we can see it. */
@@ -54,10 +69,68 @@ export function useGame(): GameClient {
   const [hint, setHint] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [myId, setMyId] = useState<string | null>(null);
+  const [hasConnected, setHasConnected] = useState(socket.connected);
+  const [unreachable, setUnreachable] = useState(false);
+  const [roomLost, setRoomLost] = useState(0);
   const activeAuthorRef = useRef<string | null>(null);
+  /** The room code we're in, readable from socket callbacks without re-subscribing. */
+  const roomCodeRef = useRef<string | null>(null);
+  const everConnectedRef = useRef(socket.connected);
+
+  /** Show a command's failure in the app banner. The promise still rejects for callers that await it. */
+  const surfaced = useCallback(<T,>(p: Promise<T>): Promise<T> => {
+    p.catch((err: unknown) => setError(err instanceof Error ? err.message : 'Something went wrong.'));
+    return p;
+  }, []);
 
   useEffect(() => {
-    const onConnect = () => setConnected(true);
+    /**
+     * Back after a drop. The server binds players to sockets, and this is a new
+     * socket, so until we rejoin it sends us nothing and refuses our commands.
+     * Rejoin our seat with the session token. If the room is gone (the server
+     * restarted, or everyone left), say so and go home instead of freezing on
+     * the last screen.
+     */
+    const rejoin = () => {
+      const code = roomCodeRef.current;
+      if (!code || tokenRoomCode() !== code) return;
+      emitAck<JoinRoomResult>('room:join', {
+        code,
+        sessionToken: getToken(),
+        displayName: getStoredName() || 'Player',
+        avatar: getStoredAvatar(),
+      })
+        .then((res) => {
+          saveSession(res.sessionToken, getStoredName() || 'Player', getStoredAvatar());
+          setMyId(res.playerId);
+        })
+        .catch((err: unknown) => {
+          // No answer isn't "the room is gone": keep the screen and say so. The
+          // next reconnect tries again.
+          if (err instanceof Error && err.message === NO_ANSWER) {
+            setError(NO_ANSWER);
+            return;
+          }
+          clearToken();
+          roomCodeRef.current = null;
+          activeAuthorRef.current = null;
+          setMyId(null);
+          setView(null);
+          setFeed([]);
+          setChat([]);
+          setHint(null);
+          setError(GAME_ENDED);
+          setRoomLost((n) => n + 1);
+        });
+    };
+    const onConnect = () => {
+      setConnected(true);
+      setHasConnected(true);
+      setUnreachable(false);
+      if (everConnectedRef.current) rejoin();
+      everConnectedRef.current = true;
+    };
+    const onConnectError = () => setUnreachable(true);
     const onDisconnect = () => setConnected(false);
     const onState = (next: RoomView) => {
       // Reset the live feed when a new clue starts.
@@ -85,63 +158,70 @@ export function useGame(): GameClient {
         // or we reconnected mid-clue).
         setHint((cur) => cur ?? next.activeClue?.hint ?? null);
       }
+      roomCodeRef.current = next.code;
       setView(next);
     };
     const onGuess = (g: PublicGuess) => setFeed((f) => [...f, g].slice(-100));
     const onChat = (m: ChatMessage) =>
       setChat((c) => (c.some((x) => x.id === m.id) ? c : [...c, m].slice(-100)));
     const onHint = (h: string) => setHint(h);
-    const onError = (msg: string) => setError(msg);
 
     socket.on('connect', onConnect);
+    socket.on('connect_error', onConnectError);
     socket.on('disconnect', onDisconnect);
     socket.on('room:state', onState);
     socket.on('guess:new', onGuess);
     socket.on('clue:hint', onHint);
     socket.on('chat:new', onChat);
-    socket.on('error', onError);
     return () => {
       socket.off('connect', onConnect);
+      socket.off('connect_error', onConnectError);
       socket.off('disconnect', onDisconnect);
       socket.off('room:state', onState);
       socket.off('guess:new', onGuess);
       socket.off('clue:hint', onHint);
       socket.off('chat:new', onChat);
-      socket.off('error', onError);
     };
   }, []);
 
   const join = useCallback<GameClient['join']>(async (displayName, avatar, code) => {
-    const res = await emitAck<JoinRoomResult>('room:join', {
-      displayName,
-      avatar,
-      code,
-      sessionToken: getToken(),
-    });
+    const res = await surfaced(
+      emitAck<JoinRoomResult>('room:join', {
+        displayName,
+        avatar,
+        code,
+        sessionToken: getToken(),
+      }),
+    );
     saveSession(res.sessionToken, displayName, avatar);
     setMyId(res.playerId);
     return res;
-  }, []);
+  }, [surfaced]);
 
   const joinSolo = useCallback<GameClient['joinSolo']>(async (displayName, avatar) => {
     // No sessionToken: solo always means a new room. Passing the old token
     // would let the reconnect path drop us back into a finished game.
-    const res = await emitAck<JoinRoomResult>('room:join', { displayName, avatar, solo: true });
+    const res = await surfaced(
+      emitAck<JoinRoomResult>('room:join', { displayName, avatar, solo: true }),
+    );
     saveSession(res.sessionToken, displayName, avatar);
     setMyId(res.playerId);
     return res;
-  }, []);
+  }, [surfaced]);
 
   const configure = useCallback<GameClient['configure']>(
-    (payload) => emitAck('room:configure', payload),
-    [],
+    (payload) => surfaced(emitAck('room:configure', payload)),
+    [surfaced],
   );
   const setReady = useCallback<GameClient['setReady']>(
-    (ready) => emitAck('player:ready', ready),
-    [],
+    (ready) => surfaced(emitAck('player:ready', ready)),
+    [surfaced],
   );
-  const start = useCallback<GameClient['start']>(() => emitAck('game:start'), []);
-  const reshuffle = useCallback<GameClient['reshuffle']>(() => emitAck('clue:reshuffle'), []);
+  const start = useCallback<GameClient['start']>(() => surfaced(emitAck('game:start')), [surfaced]);
+  const reshuffle = useCallback<GameClient['reshuffle']>(
+    () => surfaced(emitAck('clue:reshuffle')),
+    [surfaced],
+  );
   const leave = useCallback<GameClient['leave']>(async () => {
     try {
       await emitAck('room:leave');
@@ -149,30 +229,36 @@ export function useGame(): GameClient {
       /* leaving best-effort */
     }
     clearToken();
+    roomCodeRef.current = null;
     setMyId(null);
     setFeed([]);
     setChat([]);
     setView(null);
   }, []);
   const submitClue = useCallback<GameClient['submitClue']>(
-    (emojis) => emitAck('clue:submit', { emojis }),
-    [],
+    (emojis) => surfaced(emitAck('clue:submit', { emojis })),
+    [surfaced],
   );
+  // A rejected guess comes back as a result with a `reason`, not an error; the
+  // Guess screen shows that inline. Only transport/server failures reach the banner.
   const submitGuess = useCallback<GameClient['submitGuess']>(
-    (text) => emitAck<GuessResult>('guess:submit', { text }),
-    [],
+    (text) => surfaced(emitAck<GuessResult>('guess:submit', { text })),
+    [surfaced],
   );
-  const bump = useCallback<GameClient['bump']>(() => emitAck('clue:bump'), []);
+  const bump = useCallback<GameClient['bump']>(() => surfaced(emitAck('clue:bump')), [surfaced]);
   const sendChat = useCallback<GameClient['sendChat']>(
-    (text) => emitAck('clue:chat', { text }),
-    [],
+    (text) => surfaced(emitAck('clue:chat', { text })),
+    [surfaced],
   );
-  const skip = useCallback<GameClient['skip']>(() => emitAck('host:skip'), []);
-  const next = useCallback<GameClient['next']>(() => emitAck('host:next'), []);
+  const skip = useCallback<GameClient['skip']>(() => surfaced(emitAck('host:skip')), [surfaced]);
+  const next = useCallback<GameClient['next']>(() => surfaced(emitAck('host:next')), [surfaced]);
   const clearError = useCallback(() => setError(null), []);
 
   return {
     connected,
+    hasConnected,
+    unreachable,
+    roomLost,
     view,
     feed,
     chat,

@@ -16,7 +16,7 @@ type PreGameRoute = 'landing' | 'create' | 'join' | 'solo';
 
 export default function App() {
   const game = useGame();
-  const { view, error, clearError, connected } = game;
+  const { view, error, clearError, connected, hasConnected, unreachable, roomLost } = game;
   const [route, setRoute] = useState<PreGameRoute>('landing');
   const [prefillCode, setPrefillCode] = useState('');
   // Capture the URL on first render, before the URL-sync effect can change it.
@@ -62,19 +62,42 @@ export default function App() {
 
   useEffect(() => {
     if (!error) return;
-    const id = setTimeout(clearError, 4000);
+    const id = setTimeout(clearError, 5000);
     return () => clearTimeout(id);
   }, [error, clearError]);
 
+  // The room vanished while we were disconnected (useGame has already said so in
+  // the banner): go home rather than back to whichever pre-game form we came from.
+  useEffect(() => {
+    if (roomLost) setRoute('landing');
+  }, [roomLost]);
+
+  // Nothing on the very first connect, which is normally instant; a bar only
+  // when we lost a connection we had, or can't get one at all.
+  const connectionNotice = connected
+    ? null
+    : hasConnected
+      ? 'Reconnecting…'
+      : unreachable
+        ? "Can't reach Moji right now. Retrying…"
+        : null;
+
   return (
     <div className="min-h-screen">
-      {!connected && (
-        <div className="fixed inset-x-0 top-0 z-20 bg-orange py-1 text-center font-mono text-xs uppercase tracking-[2px] text-outline">
-          Reconnecting…
+      {connectionNotice && (
+        <div
+          role="status"
+          className="fixed inset-x-0 top-0 z-20 bg-orange py-1 text-center font-mono text-xs uppercase tracking-[2px] text-outline"
+        >
+          {connectionNotice}
         </div>
       )}
       {error && (
-        <div className="fixed inset-x-0 top-0 z-20 bg-coral py-2 text-center text-sm font-semibold text-outline">
+        <div
+          role="alert"
+          onClick={clearError}
+          className="fixed inset-x-0 top-0 z-30 cursor-pointer bg-coral px-4 py-2 text-center text-sm font-semibold text-outline"
+        >
           {error}
         </div>
       )}
