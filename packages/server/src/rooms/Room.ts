@@ -264,10 +264,14 @@ export class Room {
   }
 
   private migrateHost(): void {
-    // Promote the longest-connected active player (design doc §4).
-    const candidate = [...this.players.values()]
-      .filter((p) => p.role === 'player' && p.connection === 'CONNECTED' && !p.isBot)
-      .sort((a, b) => a.joinedAt - b.joinedAt)[0];
+    // Promote the longest-connected active player (design doc §4). If nobody is
+    // connected right now, a disconnected human still takes it: their seat is
+    // held for the grace period, and a room left pointing at a departed host
+    // could never start or rematch again.
+    const humans = [...this.players.values()]
+      .filter((p) => p.role === 'player' && !p.isBot)
+      .sort((a, b) => a.joinedAt - b.joinedAt);
+    const candidate = humans.find((p) => p.connection === 'CONNECTED') ?? humans[0];
     if (!candidate) return;
     for (const p of this.players.values()) p.isHost = false;
     candidate.isHost = true;
@@ -882,7 +886,13 @@ export class Room {
         rank: 0,
       }))
       .sort((a, b) => b.totalScore - a.totalScore);
-    rows.forEach((r, i) => (r.rank = i + 1));
+    // Competition ranking: equal scores share a rank (1, 1, 3). Join order used
+    // to break ties, which handed the crown and the saved rank to whoever
+    // happened to join first.
+    rows.forEach((r, i) => {
+      const prev = rows[i - 1];
+      r.rank = prev && prev.totalScore === r.totalScore ? prev.rank : i + 1;
+    });
     return rows;
   }
 

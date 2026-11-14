@@ -31,8 +31,31 @@ import { weeklyStats } from './stats.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = process.env.CLIENT_DIST ?? path.resolve(__dirname, '../../client/dist');
 
+/**
+ * Response headers for every request. Deliberately no script/style/font CSP:
+ * the shell loads Google Fonts and there's no browser in this repo's checks to
+ * prove a stricter policy doesn't break the page. These directives can't affect
+ * what the page loads; they stop it being framed (clickjacking), an injected
+ * <base> or <object>, and forms posting elsewhere.
+ */
+function securityHeaders(_req: express.Request, res: express.Response, next: express.NextFunction) {
+  res.setHeader(
+    'Content-Security-Policy',
+    "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'",
+  );
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Production is only ever served over HTTPS (Cloudflare). Not includeSubDomains:
+  // other hosts on the same domain aren't this app's to decide for.
+  if (env.isProd) res.setHeader('Strict-Transport-Security', 'max-age=15552000');
+  next();
+}
+
 async function main() {
   const app = express();
+  app.disable('x-powered-by');
+  app.use(securityHeaders);
   const httpServer = createServer(app);
 
   const corsOrigin = env.isProd

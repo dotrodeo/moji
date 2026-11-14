@@ -17,10 +17,18 @@ export function Winner({
   const rows = view.gameResults ?? [];
   const me = view.players.find((p) => p.id === game.myId);
   const isHost = me?.isHost ?? false;
-  const winner = rows[0];
-  const youWon = winner?.playerId === game.myId;
-
-  const byRank = (r: number) => rows.find((x) => x.rank === r);
+  // Rows arrive best-first with competition ranks, so a tie shares rank 1.
+  const [first, second, third] = rows;
+  const champions = rows.filter((r) => r.rank === 1);
+  const youWon = champions.some((r) => r.playerId === game.myId);
+  const title =
+    champions.length > 1
+      ? youWon
+        ? 'You tied for the crown!'
+        : `${champions.map((r) => r.displayName).join(' & ')} tie!`
+      : youWon
+        ? 'You took the crown!'
+        : `${first?.displayName ?? '—'} wins!`;
 
   return (
     <div className="relative mx-auto max-w-5xl px-4 py-10">
@@ -30,13 +38,13 @@ export function Winner({
         <div className="animate-moji-pop text-center">
           <Eyebrow className="text-gold">👑 Winner Winner</Eyebrow>
           <h1 className="mt-1 font-display text-4xl font-extrabold sm:text-5xl">
-            {youWon ? 'You took the crown!' : `${winner?.displayName ?? '—'} wins!`}
+            {title}
           </h1>
 
           <div className="mt-10 flex items-end justify-center gap-3">
-            <Plinth row={byRank(2)} place={2} heightClass="h-24" bg="bg-hairline2" />
-            <Plinth row={byRank(1)} place={1} heightClass="h-36" bg="bg-gold" crown />
-            <Plinth row={byRank(3)} place={3} heightClass="h-16" bg="bg-hairline3" />
+            <Plinth row={second} place={second?.rank ?? 2} heightClass="h-24" bg="bg-hairline2" crown={second?.rank === 1} />
+            <Plinth row={first} place={first?.rank ?? 1} heightClass="h-36" bg="bg-gold" crown />
+            <Plinth row={third} place={third?.rank ?? 3} heightClass="h-16" bg="bg-hairline3" crown={third?.rank === 1} />
           </div>
 
           <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">

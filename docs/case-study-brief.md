@@ -222,8 +222,8 @@ bot was a legal player before anyone wrote one.
   any machine or session starts with the same context.
 - **Tests as specifications.** `it('a five-person instant solve loses to a four-person slow one')`
   documents a design intent, not an implementation.
-- **Playtest instrumentation shipped.** `LOG_GUESS_MISSES` logs every incorrect guess next to the
-  real answer, explicitly as tuning data for the fuzzy matcher (normalize → drop articles →
+- **Playtest instrumentation shipped.** `LOG_GUESS_MISSES` (opt-in) logs every incorrect guess next
+  to the real answer, explicitly as tuning data for the fuzzy matcher (normalize → drop articles →
   Levenshtein with a length-scaled tolerance: short answers must be exact, only long titles allow
   two typos). It's typo forgiveness, not partial credit — "mario" never matches "super mario bros".
 - **Validation lives once, in shared.** `emoji-rules.ts` runs in the client for instant feedback and
