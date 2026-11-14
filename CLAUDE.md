@@ -194,5 +194,15 @@ of friends.
   `@esbuild-kit/*` → `esbuild` chain. The esbuild advisory covers its dev server, which drizzle-kit
   never starts, and drizzle-kit is a dev-only tool run by hand. npm's suggested "fix" is a downgrade
   to drizzle-kit 0.18. Revisit when drizzle-kit 1.0 is stable. `npm audit --omit=dev` must stay at 0.
+- **Every production deploy is a release.**
+  1. Bump `version` in the root `package.json` in the PR (semver), using `npm version X.Y.Z
+     --no-git-tag-version --workspaces=false` so the lockfile follows.
+  2. After merging, tag the merge commit `vX.Y.Z` and run `gh release create vX.Y.Z
+     --generate-notes`.
+  3. After the production build, `docker tag moji-moji moji-moji:X.Y.Z`. Compose runs the
+     untagged `moji-moji` (that is, `:latest`), so a rollback is `docker tag moji-moji:<prev>
+     moji-moji:latest && docker compose up -d --no-deps moji`. Keep the last three version images.
+
+  Nothing reads the version at runtime, so a bump alone doesn't need a rebuild.
 - **Deploying** is a rebuild of the one image (see `README.md`). Live room state is in memory, so
   recreating the `moji` container ends games in progress: check nobody is playing first.
