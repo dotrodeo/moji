@@ -95,6 +95,7 @@ export class RoomManager implements RoomHooks {
       const room = this.store.get(token.roomCode);
       if (room && room.hasPlayer(token.playerId)) {
         this.cancelGrace(token.playerId);
+        this.forgetOtherSockets(token.playerId);
         room.setConnection(token.playerId, 'CONNECTED');
         return {
           room,
@@ -190,6 +191,17 @@ export class RoomManager implements RoomHooks {
     room?.removePlayer(binding.playerId);
   }
 
+  /**
+   * A resumed seat belongs to the socket resuming it. Any older socket still
+   * bound to the same player (the connection the player just replaced) stops
+   * acting for them, instead of staying half-attached.
+   */
+  private forgetOtherSockets(playerId: string): void {
+    for (const [socketId, binding] of this.socketToPlayer) {
+      if (binding.playerId === playerId) this.socketToPlayer.delete(socketId);
+    }
+  }
+
   /** A socket's previous player, when that socket joins somewhere else. */
   private leaveBinding(binding: { roomCode: string; playerId: string }): void {
     this.playerToSocket.delete(binding.playerId);
@@ -220,7 +232,12 @@ export class RoomManager implements RoomHooks {
     if (!binding) return;
     const { roomCode, playerId } = binding;
     this.socketToPlayer.delete(socketId);
-    if (this.playerToSocket.get(playerId) === socketId) this.playerToSocket.delete(playerId);
+    // A late disconnect from a socket the player has already replaced (a reload,
+    // or a phone that came back on a new connection before the old one timed
+    // out) says nothing about the player. Marking them DISCONNECTED here used to
+    // drop a live player out of guessing, early-finish and host migration.
+    if (this.playerToSocket.get(playerId) !== socketId) return;
+    this.playerToSocket.delete(playerId);
 
     const room = this.store.get(roomCode);
     if (!room) return;

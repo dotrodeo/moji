@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
-import type { ActiveClueView, ChatMessage, PublicGuess, RoomView } from '@moji/shared';
+import type { ActiveClueView, ChatMessage, GuessResult, PublicGuess, RoomView } from '@moji/shared';
 import { MAX_GUESS_LENGTH } from '@moji/shared';
 import type { GameClient } from '../useGame.js';
 import { TimerRing } from '../components/TimerRing.js';
@@ -96,7 +96,7 @@ export function GuessScreen({ game, view }: { game: GameClient; view: RoomView }
             // you. Talk to the others who know instead.
             <ChatInput disabled={!guessing} onSubmit={(t) => void game.sendChat(t)} />
           ) : (
-            <GuessInput disabled={!guessing} onSubmit={(t) => game.submitGuess(t)} />
+            <GuessInput disabled={!guessing} onSubmit={game.submitGuess} />
           )}
         </div>
       </section>
@@ -445,10 +445,14 @@ function GuessInput({
   onSubmit,
 }: {
   disabled: boolean;
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string) => Promise<GuessResult>;
 }) {
   const [text, setText] = useState('');
+  /** Why the server turned the last guess away ("Slow down a little."), if it did. */
+  const [note, setNote] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => setNote(null), [disabled]);
 
   // Focus when the window opens, not on mount: this input is already mounted —
   // disabled — through the CLUE_REVEAL beat, and stays mounted from one clue to
@@ -458,27 +462,46 @@ function GuessInput({
     if (!disabled) inputRef.current?.focus();
   }, [disabled]);
 
+  // Clear at once so rapid guessing feels instant, but put the text back if
+  // the server turned it away, so the player isn't left wondering where it went.
   const send = () => {
     const t = text.trim();
     if (!t) return;
     setText('');
-    onSubmit(t);
+    setNote(null);
+    onSubmit(t)
+      .then((res) => {
+        if (res.accepted) return;
+        setNote(res.reason ?? "That guess didn't go through.");
+        setText((cur) => cur || t);
+      })
+      .catch(() => setText((cur) => cur || t)); // the app banner says why
   };
   return (
-    <div className="flex gap-2 border-t border-hairline2 p-3">
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && send()}
-        disabled={disabled}
-        placeholder={disabled ? 'get ready…' : 'type your guess…'}
-        maxLength={MAX_GUESS_LENGTH}
-        className="w-full rounded-tile border-2 border-hairline2 bg-inset px-4 py-2.5 outline-none focus:border-lime disabled:opacity-50"
-        ref={inputRef}
-      />
-      <StickerButton variant="lime" onClick={send} disabled={disabled} aria-label="send guess">
-        ↑
-      </StickerButton>
+    <div className="border-t border-hairline2">
+      {note && (
+        <p role="status" className="px-3 pt-2 text-sm font-semibold text-coral">
+          {note}
+        </p>
+      )}
+      <div className="flex gap-2 p-3">
+        <input
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setNote(null);
+          }}
+          onKeyDown={(e) => e.key === 'Enter' && send()}
+          disabled={disabled}
+          placeholder={disabled ? 'get ready…' : 'type your guess…'}
+          maxLength={MAX_GUESS_LENGTH}
+          className="w-full rounded-tile border-2 border-hairline2 bg-inset px-4 py-2.5 outline-none focus:border-lime disabled:opacity-50"
+          ref={inputRef}
+        />
+        <StickerButton variant="lime" onClick={send} disabled={disabled} aria-label="send guess">
+          ↑
+        </StickerButton>
+      </div>
     </div>
   );
 }
