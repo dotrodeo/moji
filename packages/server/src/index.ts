@@ -105,6 +105,19 @@ async function main() {
   });
 }
 
+// Backstop for anything that escapes a handler or a timer. Node's default is to
+// exit, and for this server that is the worse failure: every room lives in this
+// process's memory, so exiting ends every game in progress, and a restart
+// re-runs migrations. One bad message or one broken room must not do that to
+// everyone else. Log loudly and stay up. Real fixes go at the source (see
+// realtime/handlers.ts); this only stops the blast radius being the whole site.
+process.on('uncaughtException', (err) => {
+  console.error('[fatal] uncaught exception (server kept running):', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[fatal] unhandled promise rejection (server kept running):', reason);
+});
+
 main().catch((err) => {
   console.error('Fatal startup error:', err);
   process.exit(1);
