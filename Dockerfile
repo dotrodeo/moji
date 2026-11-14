@@ -38,4 +38,7 @@ COPY --from=builder /app/packages/server/drizzle ./packages/server/drizzle
 COPY --from=builder /app/packages/client/dist ./packages/client/dist
 
 EXPOSE 3000
+# Run as the image's unprivileged user. The server only reads its files and
+# listens on 3000; nothing in it needs root.
+USER node
 CMD ["node", "packages/server/dist/index.js"]

@@ -987,3 +987,29 @@ describe('Room early finish counts only who is still here', () => {
     expect(room.phase).not.toBe('CLUE_CREATION');
   });
 });
+
+describe('Room hardening', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('gives tied players the same rank', () => {
+    const { room, a } = roomAtGuessing();
+    // Play the game out with nobody solving.
+    vi.advanceTimersByTime(30 * 60_000);
+    const snap = room.getSnapshot();
+    expect(snap.phase).toBe('GAME_RESULTS');
+    const ranks = snap.gameResults!.map((r) => r.rank);
+    // Neither player solved anything, so both scored 0: a tie for first.
+    expect(ranks).toEqual([1, 1]);
+    expect(snap.gameResults!.some((r) => r.playerId === a.id)).toBe(true);
+  });
+
+  it('hands the host to a disconnected human rather than leaving the room host-less', () => {
+    const room = newRoom();
+    const a = room.addPlayer('Alice', 'player');
+    const b = room.addPlayer('Bob', 'player');
+    room.setConnection(b.id, 'DISCONNECTED');
+    room.removePlayer(a.id);
+    expect(room.getSnapshot().hostId).toBe(b.id);
+  });
+});
