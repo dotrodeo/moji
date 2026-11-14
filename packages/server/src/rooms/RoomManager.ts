@@ -268,8 +268,11 @@ export class RoomManager implements RoomHooks {
       const socketId = this.playerToSocket.get(player.id);
       if (socketId) this.broadcaster.toSocket(socketId, 'room:state', serializeRoomFor(snap, player.id));
     }
-    if (snap.phase === 'GAME_RESULTS' && !this.persistedGames.has(room.code)) {
-      this.persistedGames.add(room.code);
+    // Keyed per game, not per room: a rematch is a new game and must be saved
+    // too (keying on the room code alone silently dropped every rematch).
+    const gameKey = `${room.code}#${snap.gameNumber}`;
+    if (snap.phase === 'GAME_RESULTS' && !this.persistedGames.has(gameKey)) {
+      this.persistedGames.add(gameKey);
       this.persistGame(room).catch((err) => console.error('[persist] game failed:', err));
     }
   }
@@ -294,7 +297,9 @@ export class RoomManager implements RoomHooks {
   }
 
   onClosed(room: Room): void {
-    this.persistedGames.delete(room.code);
+    for (const key of this.persistedGames) {
+      if (key.startsWith(`${room.code}#`)) this.persistedGames.delete(key);
+    }
     this.store.delete(room.code);
     // Forget every socket binding into this room, or they outlive it.
     for (const [socketId, binding] of this.socketToPlayer) {

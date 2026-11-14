@@ -17,7 +17,7 @@ import {
   guesserPoints,
   planHintReveal,
   renderHint,
-  promptHasNumber,
+  anyHasNumber,
   validateClue,
   type ChatMessage,
   type ClueSolve,
@@ -154,6 +154,8 @@ export interface RoomSnapshot {
   gameResults: ScoreRow[] | null;
   /** Correct guesses across the whole game (for persistence, not for clients). */
   cluesGuessed: number;
+  /** 1 for the room's first game, 2 for its first rematch… (for persistence, not for clients). */
+  gameNumber: number;
 }
 
 export class Room {
@@ -184,6 +186,7 @@ export class Room {
   private gameResults: ScoreRow[] | null = null;
   /** Correct guesses this game — persisted, and the number the landing page shows. */
   private cluesGuessed = 0;
+  private gameNumber = 0;
   private timer: NodeJS.Timeout | null = null;
   /** Separate from `timer`: hint ticks run *inside* the guess phase. */
   private hintTimer: NodeJS.Timeout | null = null;
@@ -327,6 +330,7 @@ export class Room {
     this.roundNumber = 0;
     this.gameResults = null;
     this.cluesGuessed = 0;
+    this.gameNumber += 1;
     this.beginRound();
   }
 
@@ -383,7 +387,7 @@ export class Room {
     const prompt = this.assignments.get(playerId);
     if (!prompt) throw new Error('You have no prompt this round.');
     const result = validateClue(emojis, {
-      promptHasNumber: promptHasNumber(prompt.answer),
+      promptHasNumber: anyHasNumber([prompt.answer, ...prompt.accepted]),
       forbiddenTokens: [prompt.answer, ...prompt.accepted],
     });
     if (!result.ok) throw new Error(result.errors.join(' '));
@@ -953,6 +957,7 @@ export class Room {
       roundResults: this.roundResults,
       gameResults: this.gameResults,
       cluesGuessed: this.cluesGuessed,
+      gameNumber: this.gameNumber,
     };
   }
 }

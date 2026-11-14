@@ -12,6 +12,8 @@ import { categories as categoriesTbl, promptAnswers, prompts } from '../db/schem
 import { PACKS } from './database/prompt-database.js';
 import { SEED_CATEGORIES } from './seedData.js';
 import { soloPackSlugs } from './solo.js';
+import { addConfusables } from './confusables.js';
+import { normalize } from '../game/guessMatching.js';
 
 /**
  * Pack display metadata (emoji + lobby heading), keyed by slug. Lives in the
@@ -91,7 +93,10 @@ export class ContentProvider {
       console.warn('[content] No DB content found; using bundled seed set. Run `npm run db:seed`.');
       this.loadFallback();
     }
-    console.log(`[content] loaded ${this.byCategory.size} categories.`);
+    const confusables = addConfusables([...this.byCategory.values()].flatMap((c) => c.prompts));
+    console.log(
+      `[content] loaded ${this.byCategory.size} categories; ${confusables} confusable titles blocklisted.`,
+    );
   }
 
   private loadFallback(): void {
@@ -176,11 +181,21 @@ export class ContentProvider {
     if (pool.length === 0) return null;
 
     const cat = pool[Math.floor(pick() * pool.length)]!;
-    const available = cat.prompts.filter((p) => !usedPromptKeys.has(promptKey(p)));
-    const source = available.length >= count ? available : cat.prompts;
-
-    const shuffled = [...source].sort(() => pick() - 0.5);
-    const assignments = shuffled.slice(0, count);
+    const shuffle = (list: PromptForPlay[]) => [...list].sort(() => pick() - 0.5);
+    const unused = cat.prompts.filter((p) => !usedPromptKeys.has(promptKey(p)));
+    const used = cat.prompts.filter((p) => usedPromptKeys.has(promptKey(p)));
+    // Every unused prompt before any repeat. Only when the pack runs dry (a long
+    // game, prompt swaps) does a played prompt come back, and never the same
+    // answer twice in one round, which is the one thing that breaks a round.
+    const assignments: PromptForPlay[] = [];
+    const answers = new Set<string>();
+    for (const p of [...shuffle(unused), ...shuffle(used)]) {
+      if (assignments.length === count) break;
+      const answer = normalize(p.answer);
+      if (answers.has(answer)) continue;
+      answers.add(answer);
+      assignments.push(p);
+    }
     return { category: { slug: cat.slug, name: cat.name }, assignments };
   }
 
@@ -211,18 +226,20 @@ export class ContentProvider {
       const available = cat.prompts.filter(
         (p) =>
           !taken.has(promptKey(p)) &&
-          !takenAnswers.has(p.answer) &&
+          !takenAnswers.has(normalize(p.answer)) &&
           !usedPromptKeys.has(promptKey(p)),
       );
       // Fall back within the pack before giving up, mirroring dealRound: a pack
       // exhausted by a long game should still deal something.
       const source = available.length
         ? available
-        : cat.prompts.filter((p) => !taken.has(promptKey(p)) && !takenAnswers.has(p.answer));
+        : cat.prompts.filter(
+            (p) => !taken.has(promptKey(p)) && !takenAnswers.has(normalize(p.answer)),
+          );
       if (source.length === 0) continue;
       const prompt = source[Math.floor(pick() * source.length)]!;
       taken.add(promptKey(prompt));
-      takenAnswers.add(prompt.answer);
+      takenAnswers.add(normalize(prompt.answer));
       out.push({ category: { slug: cat.slug, name: cat.name }, prompt });
     }
     return out.length ? out : null;

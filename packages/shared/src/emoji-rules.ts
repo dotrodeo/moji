@@ -82,6 +82,67 @@ function isPictographic(grapheme: string): boolean {
   return /\p{Extended_Pictographic}/u.test(grapheme) || regionalIndicatorCount(grapheme) > 0;
 }
 
+/** Longest real single emoji is a tag-sequence flag (14 UTF-16 units); this leaves headroom. */
+const MAX_EMOJI_UNITS = 32;
+/** A family emoji (👨‍👩‍👧‍👦) joins four parts; nothing real joins more. */
+const MAX_ZWJ_PARTS = 4;
+const ZWJ = 0x200d;
+const BLACK_FLAG = 0x1f3f4;
+const isTag = (cp: number) => cp >= 0xe0020 && cp <= 0xe007f;
+/** Marks that belong in emoji: text/emoji variation selectors and the keycap enclosure. */
+const EMOJI_MARKS = new Set([0xfe0e, 0xfe0f, 0x20e3]);
+
+let regionNames: Intl.DisplayNames | null | undefined;
+/** Is this two-letter code a real region (so the pair renders as a flag, not two boxed letters)? */
+function isRegion(code: string): boolean {
+  if (regionNames === undefined) {
+    try {
+      regionNames = new Intl.DisplayNames(['en'], { type: 'region', fallback: 'none' });
+    } catch {
+      regionNames = null; // no Intl.DisplayNames: don't block flags we can't check
+    }
+  }
+  if (!regionNames) return true;
+  const name = regionNames.of(code);
+  return name !== undefined && code !== 'ZZ';
+}
+
+/**
+ * Is this grapheme shaped like one real emoji? Grapheme segmentation alone
+ * accepts things that only look like one character:
+ *   - letters spelled with invalid regional-indicator pairs (🇯🇦 🇼🇸 reads "JAWS"),
+ *   - long ZWJ chains (30 joined 🦁 count as "one emoji", past the 10 cap),
+ *   - an emoji carrying thousands of combining marks, broadcast to every player.
+ */
+function isWellFormedEmoji(grapheme: string): boolean {
+  if (grapheme.length > MAX_EMOJI_UNITS) return false;
+  const cps = Array.from(grapheme, (ch) => ch.codePointAt(0)!);
+  let zwj = 0;
+  for (const cp of cps) {
+    const ch = String.fromCodePoint(cp);
+    if (cp === ZWJ) {
+      zwj++;
+      continue;
+    }
+    if (isTag(cp)) {
+      // Tags only make sense inside a subdivision flag (🏴󠁧󠁢󠁳󠁣󠁴󠁿).
+      if (cps[0] !== BLACK_FLAG) return false;
+      continue;
+    }
+    if (/\p{M}/u.test(ch) && !EMOJI_MARKS.has(cp)) return false;
+    if (/\p{Cf}/u.test(ch)) return false;
+  }
+  if (zwj + 1 > MAX_ZWJ_PARTS) return false;
+
+  const regional = cps.filter((cp) => cp >= 0x1f1e6 && cp <= 0x1f1ff);
+  if (regional.length > 2) return false;
+  if (regional.length === 2) {
+    const code = regional.map((cp) => String.fromCharCode(cp - 0x1f1e6 + 65)).join('');
+    if (!isRegion(code)) return false;
+  }
+  return true;
+}
+
 function normalizeToken(s: string): string {
   return s
     .toLowerCase()
@@ -106,6 +167,10 @@ export function validateClue(
       continue;
     }
     const g = graphemes[0]!;
+    if (!isWellFormedEmoji(g)) {
+      errors.push(`"${g.slice(0, 8)}" is not a valid emoji.`);
+      continue;
+    }
     const letter = isLetterEmoji(g);
     const number = isNumberEmoji(g);
     // A keycap/enclosed-number emoji (e.g. 1️⃣) contains an ASCII digit code
@@ -147,4 +212,13 @@ export function validateClue(
 /** Does a prompt answer contain a digit? (drives the number-emoji rule) */
 export function promptHasNumber(answer: string): boolean {
   return /\d/.test(answer);
+}
+
+/**
+ * The number-emoji rule for a whole prompt: banned when the answer OR any
+ * accepted alias has a digit. "Frozen II" is spelled out, but its alias
+ * "Frozen 2" means 2️⃣ spells it all the same.
+ */
+export function anyHasNumber(texts: readonly string[]): boolean {
+  return texts.some(promptHasNumber);
 }

@@ -161,3 +161,21 @@ describe('RoomManager: reconnecting on a new socket', () => {
     expect(connectionOf(store, first.room.code, first.playerId)).toBe('DISCONNECTED');
   });
 });
+
+describe('RoomManager: saving games', () => {
+  it('saves a rematch as well as the first game', () => {
+    const saved: number[] = [];
+    const mgr = new RoomManager(new InMemoryRoomStore(), noopBroadcaster, fakeContent, async (room) => {
+      saved.push(room.getSnapshot().gameNumber);
+    });
+    const finished = (gameNumber: number) =>
+      ({
+        code: 'ABCDE',
+        getSnapshot: () => ({ phase: 'GAME_RESULTS', gameNumber, players: [] }),
+      }) as unknown as Parameters<RoomManager['onStateChange']>[0];
+    mgr.onStateChange(finished(1));
+    mgr.onStateChange(finished(1)); // the same results pushed again: saved once
+    mgr.onStateChange(finished(2)); // the rematch
+    expect(saved).toEqual([1, 2]);
+  });
+});

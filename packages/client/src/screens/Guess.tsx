@@ -31,9 +31,15 @@ export function GuessScreen({ game, view }: { game: GameClient; view: RoomView }
       <main className="flex shrink-0 flex-col items-center text-center lg:flex-1 lg:justify-center">
         {/* Mobile header */}
         <div className="mb-4 flex w-full items-center justify-between lg:hidden">
-          <Eyebrow className="text-pink">
-            {clue.authorAvatar} {clue.authorName}'s clue
-          </Eyebrow>
+          <div className="min-w-0 text-left">
+            <Eyebrow className="text-pink">
+              {clue.authorAvatar} {clue.authorName}'s clue
+            </Eyebrow>
+            {/* The pack is every guesser's one free hint: phones need it as much as desktops. */}
+            <div className="truncate text-sm font-semibold text-muted">
+              {(clue.category ?? view.category)?.name}
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             <ScorePill score={me?.score ?? 0} />
             <TimerRing deadlineTs={ringDeadline} totalMs={totalMs} size={48}>
