@@ -269,9 +269,9 @@ than prose does.
   8-player game down. Designed, not built.
 - **Same-prompt voting round** — the whole room clues one prompt and votes on the best clue.
   Designed, not built.
-- **A prompt can only live in one pack.** `prompts.categoryId` is a single FK. Four real cases were
-  dropped on this (*Twister*, *Bohemian Rhapsody*, *My Little Pony*, *Care Bears*). Fix is a
-  `prompt_categories` join table; deliberately deferred.
+- **Four titles were dropped for want of multi-pack membership** (*Twister*, *Bohemian Rhapsody*,
+  *My Little Pony*, *Care Bears*). The seeder has supported a title in several packs since
+  November 2026; they haven't been re-added yet.
 - **Solo covers 3 packs of 17.** Disney, Fairy Tales & Rhymes and Children's Movies have clue
   libraries; the other fourteen don't, and each needs ~24+ hand-written clues to become
   solo-eligible. The gate is authoring effort, and the test suite refuses a half-covered pack.

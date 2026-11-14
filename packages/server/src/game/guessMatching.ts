@@ -52,7 +52,7 @@ export function editDistance(a: string, b: string): number {
  * close to the WHOLE answer (or a curated alias), so "mario" never matches
  * "super mario bros".
  */
-function tolerance(len: number): number {
+export function tolerance(len: number): number {
   if (len <= 5) return 0;
   if (len <= 12) return 1;
   return 2;

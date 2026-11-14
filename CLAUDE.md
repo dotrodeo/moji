@@ -39,6 +39,13 @@ Break these only on purpose.
   app banner (the server's own message, or "didn't answer" after 10 s). A guess the server turns
   away comes back as a result with a `reason`, shown inline. The Create screen runs the shared
   clue rules live, so a clue the server would refuse says why before submit.
+- **The database's content is reconciled with the code's on every boot** (`db/seedDatabase.ts`),
+  in one transaction under an advisory lock. New prompts are inserted; existing ones get the code's
+  difficulty, popularity and aliases; prompts the code no longer has are **retired**, never
+  deleted (game history references them), and come back if re-added. Blocklist rows are left
+  alone. A boot logs what changed (`inserted / updated / retired / restored`): a large `retired`
+  number after a content edit means a pack or answer was renamed, which retires the old row and
+  inserts a new one.
 - **The server is authoritative.** Everything sent to clients goes through the role-filtered
   serializer in `packages/server/src/realtime/serialize.ts`, so a clue's answer is physically
   absent from the payload of anyone not entitled to it — that is the author, anyone who has
@@ -165,13 +172,10 @@ lower threshold.
 split into the trivially literal (Guns N' Roses 🔫🌹, Red Hot Chili Peppers 🌶️, Queen 👑, Coldplay)
 and bare proper nouns with no imagery at all. Both halves fail, in opposite directions.
 
-**Open: a prompt can only live in one pack.** `prompts.categoryId` is a single FK and the seeder
-keys prompt identity by `answer`, so a title can't yet be reached from two packs even though the
-design wants that. Four real cases were dropped from the new packs on exactly this: *Twister*,
-*Bohemian Rhapsody*, *My Little Pony*, *Care Bears* — each already filed as a film or a TV show.
-Fixing it means a `prompt_categories` join table plus a `ContentProvider` load change; the pack
-registry already supports a leaf feeding several packs, so nothing above the DB seam needs to move.
-Deliberately deferred (August 2026) — the packs are big enough without those four.
+**A prompt can live in more than one pack (since November 2026).** The seeder keys a prompt by
+(pack, answer), so the same title in two packs is two rows, one per pack, with no join table. The
+four titles dropped in August for want of this (*Twister*, *Bohemian Rhapsody*, *My Little Pony*,
+*Care Bears*) can now be added to their second pack; that hasn't been done.
 
 **Mixed pack mode is built** (`packMode`, see the pack-label invariant above). It solves *variety*
 — how much of the library a game touches — and leaves the serial playback loop untouched, so it is

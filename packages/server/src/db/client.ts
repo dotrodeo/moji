@@ -8,7 +8,9 @@ import * as schema from './schema.js';
  * durable data (content, completed games, analytics), never in the realtime
  * hot path.
  */
-const queryClient = postgres(env.databaseUrl, { max: 10 });
+// connect_timeout: postgres.js waits 30 s by default, and /api/stats awaits
+// this on the landing page. When the database is down, fail fast instead.
+const queryClient = postgres(env.databaseUrl, { max: 10, connect_timeout: 5 });
 
 export const db = drizzle(queryClient, { schema });
 export { schema };

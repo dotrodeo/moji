@@ -8,56 +8,60 @@
  * Typos of the real answer still are.
  *
  * Derived at load time from whatever content is live (database or bundled),
- * so it can't drift from the library and needs no curation.
+ * so it can't drift from the library and needs no curation. It runs on every
+ * boot, so it mirrors isCorrectGuess's rule with everything normalized once
+ * instead of calling it per pair (that took ~4 s on the full library).
  */
-import { isCorrectGuess, normalize } from '../game/guessMatching.js';
+import { editDistance, normalize, numbersIn, tolerance } from '../game/guessMatching.js';
 import type { PromptForPlay } from './ContentProvider.js';
 
-/** The matcher's widest tolerance is 2 edits, so longer gaps can't match. */
-const MAX_LENGTH_GAP = 2;
+interface Title {
+  text: string;
+  n: string;
+  numbers: string;
+  owners: Set<string>;
+}
 
 /** Adds confusable titles to each prompt's blocklist in place; returns how many were added. */
 export function addConfusables(prompts: PromptForPlay[]): number {
-  // Every distinct title in the library, with the normalized answers it belongs to.
-  const titles = new Map<string, { text: string; owners: Set<string> }>();
+  // Every distinct title in the library, normalized once.
+  const titles = new Map<string, Title>();
   for (const p of prompts) {
     const owner = normalize(p.answer);
     for (const text of p.accepted) {
       const n = normalize(text);
       if (!n) continue;
-      const entry = titles.get(n) ?? { text, owners: new Set<string>() };
+      const entry = titles.get(n) ?? { text, n, numbers: numbersIn(n), owners: new Set<string>() };
       entry.owners.add(owner);
       titles.set(n, entry);
     }
   }
-  const byLength = new Map<number, string[]>();
-  for (const n of titles.keys()) {
-    const list = byLength.get(n.length) ?? [];
-    list.push(n);
-    byLength.set(n.length, list);
+  const byLength = new Map<number, Title[]>();
+  for (const t of titles.values()) {
+    const list = byLength.get(t.n.length) ?? [];
+    list.push(t);
+    byLength.set(t.n.length, list);
   }
 
   let added = 0;
   for (const p of prompts) {
     const own = normalize(p.answer);
-    const accepted = new Set(p.accepted.map(normalize));
+    const accepted = p.accepted.map(normalize).filter(Boolean);
+    const acceptedSet = new Set(accepted);
     const blocked = new Set(p.blocklist.map(normalize));
-    const lengths = new Set([...accepted].map((a) => a.length));
-    const candidates = new Set<string>();
-    for (const len of lengths) {
-      for (let d = -MAX_LENGTH_GAP; d <= MAX_LENGTH_GAP; d++) {
-        for (const n of byLength.get(len + d) ?? []) candidates.add(n);
-      }
-    }
-    for (const n of candidates) {
-      const entry = titles.get(n)!;
-      // The same title filed twice (two packs, or punctuation variants of one
-      // answer) is not a different title.
-      if (accepted.has(n) || blocked.has(n) || entry.owners.has(own)) continue;
-      if (isCorrectGuess(entry.text, { accepted: p.accepted })) {
-        p.blocklist.push(entry.text);
-        blocked.add(n);
-        added++;
+    for (const a of accepted) {
+      const reach = tolerance(a.length);
+      if (reach === 0) continue; // exact-only: no other title can match it
+      const numbers = numbersIn(a);
+      for (let len = a.length - reach; len <= a.length + reach; len++) {
+        for (const t of byLength.get(len) ?? []) {
+          if (acceptedSet.has(t.n) || blocked.has(t.n) || t.owners.has(own)) continue;
+          // Same rule as isCorrectGuess: numbers must agree, then within tolerance.
+          if (t.numbers !== numbers || editDistance(a, t.n) > reach) continue;
+          p.blocklist.push(t.text);
+          blocked.add(t.n);
+          added++;
+        }
       }
     }
   }

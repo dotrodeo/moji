@@ -3,8 +3,11 @@ import { db } from './client.js';
 import { seedDatabase } from './seedDatabase.js';
 
 async function main() {
-  const { categories, newPrompts } = await seedDatabase(db);
-  console.log(`Seed complete: ${categories} categories, ${newPrompts} new prompts.`);
+  const r = await seedDatabase(db);
+  console.log(
+    `Seed complete: ${r.categories} categories; ${r.inserted} inserted, ${r.updated} updated, ` +
+      `${r.retired} retired, ${r.restored} restored.`,
+  );
   process.exit(0);
 }
 

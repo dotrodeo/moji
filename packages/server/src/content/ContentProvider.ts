@@ -5,7 +5,7 @@
  * dealing is then a fast in-memory pick. Falls back to the bundled seed set if
  * the database is empty/unavailable so the game still runs locally.
  */
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Pack } from '@moji/shared';
 import type { Db } from '../db/client.js';
 import { categories as categoriesTbl, promptAnswers, prompts } from '../db/schema.js';
@@ -54,40 +54,15 @@ export class ContentProvider {
   constructor(private readonly db: Db) {}
 
   async load(): Promise<void> {
-    this.byCategory.clear();
+    // Built into a local map and swapped in only when complete: a query failing
+    // halfway used to leave a partial deck in place AND skip the fallback.
+    let loaded = new Map<string, CategoryContent>();
     try {
-      const cats = await this.db
-        .select()
-        .from(categoriesTbl)
-        .where(eq(categoriesTbl.isActive, true));
-
-      for (const cat of cats) {
-        const rows = await this.db
-          .select()
-          .from(prompts)
-          .where(and(eq(prompts.categoryId, cat.id), eq(prompts.status, 'approved')));
-
-        const content: PromptForPlay[] = [];
-        for (const p of rows) {
-          const answers = await this.db
-            .select()
-            .from(promptAnswers)
-            .where(eq(promptAnswers.promptId, p.id));
-          content.push({
-            id: p.id,
-            answer: p.answer,
-            accepted: answers.filter((a) => !a.isBlocklist).map((a) => a.text),
-            blocklist: answers.filter((a) => a.isBlocklist).map((a) => a.text),
-            difficulty: p.difficulty,
-          });
-        }
-        if (content.length > 0) {
-          this.byCategory.set(cat.slug, { slug: cat.slug, name: cat.name, prompts: content });
-        }
-      }
+      loaded = await this.loadFromDb();
     } catch (err) {
       console.warn('[content] DB load failed, using bundled fallback:', (err as Error).message);
     }
+    this.byCategory = loaded;
 
     if (this.byCategory.size === 0) {
       console.warn('[content] No DB content found; using bundled seed set. Run `npm run db:seed`.');
@@ -97,6 +72,61 @@ export class ContentProvider {
     console.log(
       `[content] loaded ${this.byCategory.size} categories; ${confusables} confusable titles blocklisted.`,
     );
+  }
+
+  /** Three queries (categories, prompts, answers), not one per prompt. */
+  private async loadFromDb(): Promise<Map<string, CategoryContent>> {
+    const cats = await this.db.select().from(categoriesTbl).where(eq(categoriesTbl.isActive, true));
+    if (cats.length === 0) return new Map();
+    const rows = await this.db
+      .select()
+      .from(prompts)
+      .where(
+        and(
+          inArray(
+            prompts.categoryId,
+            cats.map((c) => c.id),
+          ),
+          eq(prompts.status, 'approved'),
+        ),
+      );
+    const answers = rows.length
+      ? await this.db
+          .select()
+          .from(promptAnswers)
+          .where(
+            inArray(
+              promptAnswers.promptId,
+              rows.map((r) => r.id),
+            ),
+          )
+      : [];
+    const answersOf = new Map<string, (typeof answers)[number][]>();
+    for (const a of answers) {
+      const list = answersOf.get(a.promptId) ?? [];
+      list.push(a);
+      answersOf.set(a.promptId, list);
+    }
+
+    const out = new Map<string, CategoryContent>();
+    for (const cat of cats) {
+      const content: PromptForPlay[] = rows
+        .filter((p) => p.categoryId === cat.id)
+        .map((p) => {
+          const own = answersOf.get(p.id) ?? [];
+          return {
+            id: p.id,
+            answer: p.answer,
+            accepted: own.filter((a) => !a.isBlocklist).map((a) => a.text),
+            blocklist: own.filter((a) => a.isBlocklist).map((a) => a.text),
+            difficulty: p.difficulty,
+          };
+        })
+        // A prompt with no accepted answers can never be solved; don't deal it.
+        .filter((p) => p.accepted.length > 0);
+      if (content.length > 0) out.set(cat.slug, { slug: cat.slug, name: cat.name, prompts: content });
+    }
+    return out;
   }
 
   private loadFallback(): void {
