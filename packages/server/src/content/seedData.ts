@@ -18,6 +18,7 @@ import {
   type PromptEntry,
   type Umbrella,
 } from './database/prompt-database.js';
+import { normalize } from '../game/guessMatching.js';
 
 export interface SeedPrompt {
   answer: string;
@@ -36,10 +37,19 @@ export interface SeedCategory {
   prompts: SeedPrompt[];
 }
 
-/** First entry wins — the array is quality-sorted, so that's the better one. */
+/**
+ * First entry wins — the array is quality-sorted, so that's the better one.
+ * Compared after the guess matcher's normalization, so "Fast & Furious" and
+ * "The Fast and the Furious" (one string to the matcher) count as one answer.
+ */
 function dedupeByAnswer(entries: PromptEntry[]): PromptEntry[] {
   const seen = new Set<string>();
-  return entries.filter((e) => !seen.has(e.answer) && (seen.add(e.answer), true));
+  return entries.filter((e) => {
+    const key = normalize(e.answer);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function buildCategories(): SeedCategory[] {

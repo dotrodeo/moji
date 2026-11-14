@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_EMOJIS, promptHasNumber, validateClue } from './emoji-rules.js';
+import { MAX_EMOJIS, anyHasNumber, promptHasNumber, validateClue } from './emoji-rules.js';
 
 const base = { promptHasNumber: false } as const;
 
@@ -70,5 +70,39 @@ describe('promptHasNumber', () => {
   it('detects digits in the answer', () => {
     expect(promptHasNumber('Toy Story 3')).toBe(true);
     expect(promptHasNumber('Titanic')).toBe(false);
+  });
+});
+
+describe('validateClue — malformed emoji', () => {
+  const ok = (e: string) => validateClue([e], base).ok;
+
+  it('accepts real multi-part emoji', () => {
+    for (const e of ['👨‍👩‍👧‍👦', '🏳️‍🌈', '🏴󠁧󠁢󠁳󠁣󠁴󠁿', '👍🏽', '❤️', '🧑🏽‍🚀', '🫱🏻‍🫲🏿', '🇯🇵', '🇼🇸', '🇪🇺', '™️']) {
+      expect(ok(e), e).toBe(true);
+    }
+  });
+
+  it('rejects regional-indicator pairs that are not a real region (they render as letters)', () => {
+    expect(ok('🇯🇦')).toBe(false); // "JA": half of 🇯🇦 🇼🇸 spelling JAWS
+    expect(ok('🇿🇿')).toBe(false);
+  });
+
+  it('rejects ZWJ chains longer than any real emoji', () => {
+    expect(ok(Array(5).fill('🦁').join('‍'))).toBe(false);
+    expect(ok(Array(30).fill('🦁').join('‍'))).toBe(false);
+  });
+
+  it('rejects stray combining marks and format characters', () => {
+    expect(ok('🦁' + '́'.repeat(5000))).toBe(false);
+    expect(ok('🦁́')).toBe(false);
+    expect(ok('؀🦁')).toBe(false); // prepend character
+    expect(ok('🦁\u{E0067}\u{E007F}')).toBe(false); // tags outside a 🏴 flag
+  });
+});
+
+describe('anyHasNumber', () => {
+  it('bans number emoji when an alias has a digit even if the answer does not', () => {
+    expect(anyHasNumber(['Frozen II', 'Frozen 2'])).toBe(true);
+    expect(anyHasNumber(['Frozen II'])).toBe(false);
   });
 });

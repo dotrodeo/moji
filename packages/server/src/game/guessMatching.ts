@@ -58,6 +58,24 @@ function tolerance(len: number): number {
   return 2;
 }
 
+/**
+ * Multi-letter Roman numerals read as numbers. Single letters (i, v, x) are
+ * left alone: they are far more often words or names ("I, Robot", "Malcolm X")
+ * than sequel numbers, and treating them as numbers would refuse "irobot".
+ */
+const ROMAN: Record<string, number> = { ii: 2, iii: 3, iv: 4, vi: 6, vii: 7, viii: 8, ix: 9 };
+
+/** The numbers in a normalized title, in order: "toy story 3" -> "3", "rocky iv" -> "4". */
+export function numbersIn(normalized: string): string {
+  const out: number[] = [];
+  for (const token of normalized.split(' ')) {
+    const roman = ROMAN[token];
+    if (roman !== undefined) out.push(roman);
+    else for (const run of token.match(/\d+/g) ?? []) out.push(Number(run));
+  }
+  return out.join(' ');
+}
+
 export function isCorrectGuess(guess: string, spec: AnswerSpec): boolean {
   const g = normalize(guess);
   if (!g) return false;
@@ -69,6 +87,9 @@ export function isCorrectGuess(guess: string, spec: AnswerSpec): boolean {
     const a = normalize(ans);
     if (!a) continue;
     if (a === g) return true;
+    // Typo tolerance never stretches across a number: "toy story 3" is a
+    // different film from "toy story 2", not a one-letter slip.
+    if (numbersIn(a) !== numbersIn(g)) continue;
     if (editDistance(a, g) <= tolerance(a.length)) return true;
   }
   return false;
