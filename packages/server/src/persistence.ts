@@ -11,24 +11,27 @@ export async function persistCompletedGame(room: Room): Promise<void> {
   const snap = room.getSnapshot();
   const results = snap.gameResults ?? [];
 
-  const [game] = await db
-    .insert(games)
-    .values({
-      roomCode: snap.code,
-      config: snap.config,
-      status: 'completed',
-      cluesGuessed: snap.cluesGuessed,
-      endedAt: new Date(),
-    })
-    .returning();
-  if (!game) return;
-
-  for (const row of results) {
-    await db.insert(gamePlayers).values({
-      gameId: game.id,
-      displayName: row.displayName,
-      finalScore: row.totalScore,
-      finalRank: row.rank,
-    });
-  }
+  // One transaction: a failure partway can't leave a counted game with
+  // missing players.
+  await db.transaction(async (tx) => {
+    const [game] = await tx
+      .insert(games)
+      .values({
+        roomCode: snap.code,
+        config: snap.config,
+        status: 'completed',
+        cluesGuessed: snap.cluesGuessed,
+        endedAt: new Date(),
+      })
+      .returning();
+    if (!game || results.length === 0) return;
+    await tx.insert(gamePlayers).values(
+      results.map((row) => ({
+        gameId: game.id,
+        displayName: row.displayName,
+        finalScore: row.totalScore,
+        finalRank: row.rank,
+      })),
+    );
+  });
 }

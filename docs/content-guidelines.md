@@ -49,8 +49,10 @@ leaf; two merge several, both deliberately:
 Adding a pack is one edit: an entry in `PACKS`. `seedData.ts`, the seeder, `ContentProvider`, and
 the lobby all derive from it, and `content/packs.test.ts` fails if a leaf ends up in no pack (making
 it silently undealable). Overlap is not an error — see below. Renames and regroupings are code edits,
-not migrations — the `categories` table stores only slug and name, and the seeder re-homes moved
-prompts on the next run.
+not migrations — the `categories` table stores only slug and name. On the next boot the seeder
+brings the database in line: a prompt is keyed by (pack, answer), so a title that moves pack is
+retired from the old pack and inserted in the new one, and an entry deleted from the file is
+retired (never deleted; game history refers to it).
 
 ### A pack is a hint, not a boundary
 
@@ -72,9 +74,9 @@ two players in one round, two people are cluing the same thing and the round is 
 invariant worth protecting, and it's cheap: `seedData.ts` dedupes each pack by answer, and
 `content/packs.test.ts` asserts no pack contains a duplicate.
 
-Note the current limit: `prompts.categoryId` is a single FK and the seeder keys prompts by `answer`,
-so **one entry can only live in one pack today**. The registry already supports a leaf feeding
-several packs; per-title membership needs a `prompt_categories` join table.
+A title can live in more than one pack: the seeder keys prompts by (pack, answer), so the same
+title in two packs becomes two rows. Within one pack, `seedData.ts` dedupes on the guess matcher's
+*normalized* answer, so "Fast & Furious" and "The Fast and the Furious" count as one.
 
 ### Clues for the solo bot
 
@@ -134,9 +136,8 @@ rather than filtering entry by entry. It's cheaper, and it keeps the pack's char
    inside the sample, reject the category.
 5. Skip franchise entries whose obvious guess is the parent title. "Breath of the Wild" marks a
    player typing "Zelda" wrong, which punishes the room for knowing the answer.
-6. One entry per *answer string* — not because overlap is bad (it isn't), but because the seeder
-   keys prompt identity by `answer`. A title that belongs in two packs stays where it is until the
-   join table lands.
+6. A title that belongs in two packs can be in both. Don't add near-duplicates of one answer to the
+   same pack: the dedupe keeps the first, and the matcher treats them as the same answer anyway.
 7. A new leaf category needs a `PACKS` entry (its own pack, or added to an existing one's
    `categories`), or it will never be dealt. The test catches this.
 8. Keep the array sorted by `total` desc, then `recognition` desc.
