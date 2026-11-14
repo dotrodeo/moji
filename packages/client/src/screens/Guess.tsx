@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type UIEvent } from 'react';
 import type { ActiveClueView, ChatMessage, PublicGuess, RoomView } from '@moji/shared';
+import { MAX_GUESS_LENGTH } from '@moji/shared';
 import type { GameClient } from '../useGame.js';
 import { TimerRing } from '../components/TimerRing.js';
 import { Avatar, Eyebrow, StickerButton, cn } from '../ui.js';
@@ -471,6 +472,7 @@ function GuessInput({
         onKeyDown={(e) => e.key === 'Enter' && send()}
         disabled={disabled}
         placeholder={disabled ? 'get ready…' : 'type your guess…'}
+        maxLength={MAX_GUESS_LENGTH}
         className="w-full rounded-tile border-2 border-hairline2 bg-inset px-4 py-2.5 outline-none focus:border-lime disabled:opacity-50"
         ref={inputRef}
       />

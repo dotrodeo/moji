@@ -7,6 +7,7 @@
  * any of them for a scaled-out implementation does not touch game logic.
  */
 import {
+  DEFAULT_AVATAR,
   DEFAULT_SCORING,
   SOLO_ROOM_CONFIG,
   type ChatMessage,
@@ -23,6 +24,14 @@ import { Room, type RoomHooks } from './Room.js';
 import type { RoomStore } from './RoomStore.js';
 
 const DISCONNECT_GRACE_MS = 60_000;
+/**
+ * Live rooms this process will hold. Rooms are cheap, but each one is memory and
+ * timers in the one process every player shares; past this, new games are refused
+ * rather than risking everyone's.
+ */
+export const MAX_ROOMS = 300;
+/** A room with no player action for this long is closed by sweepIdleRooms(). */
+export const IDLE_ROOM_MS = 60 * 60_000;
 
 /** The solo opponent. Named and avatared so the room reads as two players. */
 const BOT_NAME = 'Mojibot';
@@ -58,7 +67,21 @@ export class RoomManager implements RoomHooks {
     });
   }
 
+  /**
+   * `payload` must already be validated (realtime/validate.ts). If this socket
+   * was bound to a player, that player leaves their room, but only once the
+   * new join has succeeded: a failed join changes nothing. Re-entering the same
+   * slot with its token is a resume, not a leave.
+   */
   join(socketId: string, payload: JoinRoomPayload): JoinOutcome {
+    const prior = this.socketToPlayer.get(socketId);
+    const outcome = this.resolveJoin(payload);
+    if (prior && prior.playerId !== outcome.playerId) this.leaveBinding(prior);
+    this.bind(socketId, outcome.room.code, outcome.playerId);
+    return outcome;
+  }
+
+  private resolveJoin(payload: JoinRoomPayload): JoinOutcome {
     const displayName = sanitizeName(payload.displayName);
     const requestedCode = payload.code?.toUpperCase();
 
@@ -73,7 +96,6 @@ export class RoomManager implements RoomHooks {
       if (room && room.hasPlayer(token.playerId)) {
         this.cancelGrace(token.playerId);
         room.setConnection(token.playerId, 'CONNECTED');
-        this.bind(socketId, room.code, token.playerId);
         return {
           room,
           playerId: token.playerId,
@@ -86,23 +108,25 @@ export class RoomManager implements RoomHooks {
     // not reachable with a `code` — you cannot bring a bot into someone
     // else's game — and deliberately not a lobby, because there is nobody to
     // wait for and the mode exists to be playable in one click.
-    if (payload.solo && !requestedCode) return this.createSoloRoom(socketId, displayName, payload);
+    if (payload.solo && !requestedCode) return this.createSoloRoom(displayName, payload);
 
     // Create or look up the room.
     let room: Room;
     if (requestedCode) {
       const found = this.store.get(requestedCode);
       if (!found) throw new Error('Room not found.');
+      // The other direction of the rule above: nobody walks into a stranger's
+      // solo game with its code (from a shared /r/ link, say).
+      if (found.config.mode === 'solo') {
+        throw new Error("That's a solo game. Start your own from the home page.");
+      }
       room = found;
     } else {
-      const code = generateRoomCode((c) => this.store.has(c));
-      room = this.newRoom(code);
-      this.store.set(room);
+      room = this.createRoom();
     }
 
     const role = payload.asSpectator ? 'spectator' : 'player';
-    const player = room.addPlayer(displayName, role, payload.avatar || '😎');
-    this.bind(socketId, room.code, player.id);
+    const player = room.addPlayer(displayName, role, payload.avatar || DEFAULT_AVATAR);
     return {
       room,
       playerId: player.id,
@@ -110,24 +134,27 @@ export class RoomManager implements RoomHooks {
     };
   }
 
-  private createSoloRoom(
-    socketId: string,
-    displayName: string,
-    payload: JoinRoomPayload,
-  ): JoinOutcome {
+  private createRoom(): Room {
+    if (this.store.count() >= MAX_ROOMS) {
+      throw new Error('Moji is full right now. Try again in a few minutes.');
+    }
     const code = generateRoomCode((c) => this.store.has(c));
     const room = this.newRoom(code);
-    room.config = { ...SOLO_ROOM_CONFIG };
     this.store.set(room);
+    return room;
+  }
+
+  private createSoloRoom(displayName: string, payload: JoinRoomPayload): JoinOutcome {
+    const room = this.createRoom();
+    room.config = { ...SOLO_ROOM_CONFIG };
 
     // The human joins first, so they are the host and the bot never is.
-    const human = room.addPlayer(displayName, 'player', payload.avatar || '😎');
-    this.bind(socketId, code, human.id);
+    const human = room.addPlayer(displayName, 'player', payload.avatar || DEFAULT_AVATAR);
     const bot = room.addPlayer(BOT_NAME, 'player', BOT_AVATAR, true);
     this.spawnBot(room, bot.id);
     room.start(human.id);
 
-    return { room, playerId: human.id, sessionToken: issueSessionToken(human.id, code) };
+    return { room, playerId: human.id, sessionToken: issueSessionToken(human.id, room.code) };
   }
 
   /**
@@ -161,6 +188,30 @@ export class RoomManager implements RoomHooks {
     const room = this.store.get(binding.roomCode);
     this.unbind(socketId);
     room?.removePlayer(binding.playerId);
+  }
+
+  /** A socket's previous player, when that socket joins somewhere else. */
+  private leaveBinding(binding: { roomCode: string; playerId: string }): void {
+    this.playerToSocket.delete(binding.playerId);
+    this.cancelGrace(binding.playerId);
+    this.store.get(binding.roomCode)?.removePlayer(binding.playerId);
+  }
+
+  /**
+   * Close every room with no player action for IDLE_ROOM_MS. Abandoned lobbies
+   * and finished games otherwise stay in memory for as long as a socket is
+   * attached. Called on an interval from index.ts.
+   */
+  sweepIdleRooms(now = Date.now()): number {
+    let closed = 0;
+    for (const code of this.store.codes()) {
+      const room = this.store.get(code);
+      if (room && now - room.lastActivityAt > IDLE_ROOM_MS) {
+        room.expire();
+        closed++;
+      }
+    }
+    return closed;
   }
 
   /** Socket dropped: keep the slot for a grace period, then remove. */
@@ -228,6 +279,15 @@ export class RoomManager implements RoomHooks {
   onClosed(room: Room): void {
     this.persistedGames.delete(room.code);
     this.store.delete(room.code);
+    // Forget every socket binding into this room, or they outlive it.
+    for (const [socketId, binding] of this.socketToPlayer) {
+      if (binding.roomCode !== room.code) continue;
+      this.socketToPlayer.delete(socketId);
+      if (this.playerToSocket.get(binding.playerId) === socketId) {
+        this.playerToSocket.delete(binding.playerId);
+      }
+      this.cancelGrace(binding.playerId);
+    }
     for (const [playerId, bot] of this.bots) {
       if (bot.roomCode !== room.code) continue;
       bot.driver.dispose(); // otherwise its timers outlive the room

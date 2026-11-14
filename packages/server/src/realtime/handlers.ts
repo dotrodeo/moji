@@ -21,6 +21,42 @@ import type {
 } from '@moji/shared';
 import type { RoomManager } from '../rooms/RoomManager.js';
 import type { Room } from '../rooms/Room.js';
+import { RateLimiter } from './rateLimit.js';
+import {
+  parseChat,
+  parseClue,
+  parseConfigure,
+  parseGuess,
+  parseJoin,
+  parseReady,
+} from './validate.js';
+
+/** Joins of any kind per client per minute: generous for a party, too slow to walk 24M codes. */
+const JOINS_PER_MINUTE = 30;
+/** New rooms (party or solo) per client per 10 minutes. */
+const ROOM_CREATES_PER_10_MIN = 10;
+
+/**
+ * Who a socket is, for rate limiting. Production sits behind a Cloudflare
+ * Tunnel and the port is bound to 127.0.0.1, so every connection arrives from
+ * cloudflared and `cf-connecting-ip` is set by Cloudflare, not the client.
+ * Without the header (local dev) the socket's own address is used.
+ *
+ * If production ever lost the header, every visitor would share cloudflared's
+ * one address and the limits would apply to the whole site at once, so the
+ * source in use is logged once per process (never the address itself).
+ */
+let loggedKeySource: string | null = null;
+function clientKey(socket: AppSocket): string {
+  const header = socket.handshake.headers['cf-connecting-ip'];
+  const ip = Array.isArray(header) ? header[0] : header;
+  const source = ip ? 'cf-connecting-ip' : 'socket address';
+  if (loggedKeySource !== source) {
+    loggedKeySource = source;
+    console.log(`[socket] rate limits keyed by ${source}`);
+  }
+  return ip || socket.handshake.address || 'unknown';
+}
 
 type Io = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
 type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
@@ -69,13 +105,30 @@ function handle<T>(ack: unknown, run: () => T, after?: () => void): void {
 }
 
 export function registerSocketHandlers(io: Io, manager: RoomManager): void {
+  const joinLimiter = new RateLimiter(JOINS_PER_MINUTE, 60_000);
+  const createLimiter = new RateLimiter(ROOM_CREATES_PER_10_MIN, 10 * 60_000);
+
+  /** Stop receiving a room's broadcasts (hints, guess feed) once you're no longer in it. */
+  const leaveChannel = (socket: AppSocket) => {
+    if (socket.data.roomCode) socket.leave(manager.socketRoomName(socket.data.roomCode));
+    socket.data.roomCode = undefined;
+    socket.data.playerId = undefined;
+  };
+
   io.on('connection', (socket: AppSocket) => {
     socket.on('room:join', (payload, ack) => {
       let joined: Room | undefined;
       handle(
         ack,
         () => {
-          const { room, playerId, sessionToken } = manager.join(socket.id, payload);
+          const request = parseJoin(payload);
+          const who = clientKey(socket);
+          if (!joinLimiter.allow(who)) throw new Error('Too many attempts. Wait a minute and try again.');
+          if (!request.code && !createLimiter.allow(who)) {
+            throw new Error("You've started a lot of games. Wait a few minutes and try again.");
+          }
+          const { room, playerId, sessionToken } = manager.join(socket.id, request);
+          if (socket.data.roomCode !== room.code) leaveChannel(socket);
           socket.data.playerId = playerId;
           socket.data.roomCode = room.code;
           socket.join(manager.socketRoomName(room.code));
@@ -90,11 +143,11 @@ export function registerSocketHandlers(io: Io, manager: RoomManager): void {
     });
 
     socket.on('room:configure', (payload, ack) =>
-      handle(ack, () => manager.command(socket.id, (room, pid) => room.configure(pid, payload))),
+      handle(ack, () => manager.command(socket.id, (room, pid) => room.configure(pid, parseConfigure(payload)))),
     );
 
     socket.on('player:ready', (ready, ack) =>
-      handle(ack, () => manager.command(socket.id, (room, pid) => room.setReady(pid, ready))),
+      handle(ack, () => manager.command(socket.id, (room, pid) => room.setReady(pid, parseReady(ready)))),
     );
 
     socket.on('game:start', (ack) =>
@@ -107,13 +160,13 @@ export function registerSocketHandlers(io: Io, manager: RoomManager): void {
 
     socket.on('clue:submit', (payload, ack) =>
       handle(ack, () =>
-        manager.command(socket.id, (room, pid) => room.submitClue(pid, payload.emojis)),
+        manager.command(socket.id, (room, pid) => room.submitClue(pid, parseClue(payload).emojis)),
       ),
     );
 
     socket.on('guess:submit', (payload, ack) =>
       handle(ack, () =>
-        manager.command(socket.id, (room, pid) => room.submitGuess(pid, payload.text)),
+        manager.command(socket.id, (room, pid) => room.submitGuess(pid, parseGuess(payload).text)),
       ),
     );
 
@@ -123,7 +176,7 @@ export function registerSocketHandlers(io: Io, manager: RoomManager): void {
 
     socket.on('clue:chat', (payload, ack) =>
       handle(ack, () =>
-        manager.command(socket.id, (room, pid) => room.sendClueChat(pid, payload.text)),
+        manager.command(socket.id, (room, pid) => room.sendClueChat(pid, parseChat(payload).text)),
       ),
     );
 
@@ -135,7 +188,12 @@ export function registerSocketHandlers(io: Io, manager: RoomManager): void {
       handle(ack, () => manager.command(socket.id, (room, pid) => room.hostNext(pid))),
     );
 
-    socket.on('room:leave', (ack) => handle(ack, () => manager.leave(socket.id)));
+    socket.on('room:leave', (ack) =>
+      handle(ack, () => {
+        manager.leave(socket.id);
+        leaveChannel(socket);
+      }),
+    );
 
     socket.on('disconnect', () => {
       try {

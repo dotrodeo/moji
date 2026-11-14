@@ -57,6 +57,9 @@ export interface SubmitGuessPayload {
   text: string;
 }
 
+/** Longest guess the server accepts; comfortably above the longest answer (~45 characters). */
+export const MAX_GUESS_LENGTH = 100;
+
 export interface ClueChatPayload {
   text: string;
 }

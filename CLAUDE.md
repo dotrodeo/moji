@@ -9,6 +9,23 @@ machine (or any session) starts with the same context.
 
 Break these only on purpose.
 
+- **Nothing a client sends is trusted, and the event types don't make it so.** The shared event
+  types describe what *our* client sends; they vanish at runtime and the socket is open to anyone.
+  Every client→server payload goes through a parser in `server/src/realtime/validate.ts` before
+  it reaches a command, and every handler goes through `handle()` in `realtime/handlers.ts`, which
+  never lets a throw escape (Socket.IO doesn't catch listener errors, and one escaped throw used to
+  exit the process). A new event needs both. Whatever a payload stores in room state is sent to
+  every player, so an unchecked field is a way to crash their browsers or multiply bandwidth. Hence
+  avatars come only from the shared `AVATARS` list, guesses stop at `MAX_GUESS_LENGTH`, and
+  messages over 16 KB are dropped by Socket.IO (`maxHttpBufferSize`).
+- **Capacity is bounded on purpose.** A room seats 12 players and 8 spectators (`Room.ts`), the
+  process holds at most 300 rooms (`RoomManager.MAX_ROOMS`), rooms with no player action for an
+  hour are swept, and a client may join 30 times a minute and create 10 rooms per 10 minutes
+  (`handlers.ts`). Clients are told apart by `cf-connecting-ip`, which only works because
+  production is reachable solely through the Cloudflare Tunnel. The server logs which key source
+  it is using: if production ever logs `socket address`, every visitor shares one limit. One
+  socket is one player: joining elsewhere removes the socket's previous seat (after the new join
+  succeeds), and leaving drops the socket's broadcast channel. Solo rooms can't be joined by code.
 - **The server is authoritative.** Everything sent to clients goes through the role-filtered
   serializer in `packages/server/src/realtime/serialize.ts`, so a clue's answer is physically
   absent from the payload of anyone not entitled to it — that is the author, anyone who has

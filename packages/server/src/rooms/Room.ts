@@ -40,6 +40,13 @@ import { promptKey } from '../content/ContentProvider.js';
 import { isBotPlayable } from '../content/solo.js';
 
 const MIN_PLAYERS = 2; // design target is 4–10; relaxed for dev/testing
+/**
+ * Seats per room. Built for 4–10; 12 leaves room for a big table while keeping
+ * every pack (24+ prompts) deeper than one round's deal, and bounding what each
+ * state push costs, since every push goes to every player.
+ */
+export const MAX_PLAYERS = 12;
+export const MAX_SPECTATORS = 8;
 const ROUND_INTRO_MS = 2000; // category banner
 const PROMPT_ASSIGNMENT_MS = 3100; // visible secret prompt + 3-2-1-GO (design)
 const CLUE_REVEAL_MS = 1500; // brief "get ready" beat before guessing opens
@@ -187,6 +194,11 @@ export class Room {
 
   // ── membership ──────────────────────────────────────────────────────────
   addPlayer(displayName: string, role: PlayerRole, avatar = '😎', isBot = false): Player {
+    const seated = [...this.players.values()].filter((p) => p.role === role).length;
+    if (role === 'player' && seated >= MAX_PLAYERS) throw new Error('This room is full.');
+    if (role === 'spectator' && seated >= MAX_SPECTATORS) {
+      throw new Error('This room has all the spectators it can take.');
+    }
     const id = nanoid();
     // A bot never hosts: the human who opened the room stays in charge of it.
     const isHost = this.players.size === 0 && role === 'player' && !isBot;
@@ -265,7 +277,14 @@ export class Room {
       this.config.clueCreationSeconds = clamp(payload.clueCreationSeconds, 20, 180);
     if (payload.guessingSeconds !== undefined)
       this.config.guessingSeconds = clamp(payload.guessingSeconds, 15, 120);
-    if (payload.packSlug !== undefined) this.config.packSlug = payload.packSlug;
+    if (payload.packSlug !== undefined) {
+      // '' is "any pack". Any other slug must be one the content can deal from.
+      const known = this.deps.content.packs().some((p) => p.slug === payload.packSlug);
+      if (payload.packSlug !== '' && !known) {
+        throw new Error('Unknown pack.');
+      }
+      this.config.packSlug = payload.packSlug;
+    }
     if (payload.packMode !== undefined) this.config.packMode = payload.packMode;
     if (payload.reshuffles !== undefined) this.config.reshuffles = clamp(payload.reshuffles, 0, 5);
     if (payload.reshuffleCost !== undefined)
@@ -739,6 +758,11 @@ export class Room {
     this.active = null;
     this.transition('GAME_RESULTS', null, null);
     // RoomManager persists the completed game from onStateChange.
+  }
+
+  /** Close an abandoned room from outside (RoomManager.sweepIdleRooms). */
+  expire(): void {
+    if (this.phase !== 'ROOM_CLOSED') this.close();
   }
 
   private close(): void {

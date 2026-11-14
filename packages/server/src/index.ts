@@ -23,6 +23,7 @@ import { InMemoryRoomStore } from './rooms/RoomStore.js';
 import { SocketIoBroadcaster } from './realtime/Broadcaster.js';
 import { RoomManager } from './rooms/RoomManager.js';
 import { registerSocketHandlers } from './realtime/handlers.js';
+import { MAX_MESSAGE_BYTES } from './realtime/validate.js';
 import { landingMeta, normalizeRoomCode, renderShell, roomMeta } from './realtime/og.js';
 import { persistCompletedGame } from './persistence.js';
 import { weeklyStats } from './stats.js';
@@ -40,7 +41,12 @@ async function main() {
 
   const io = new Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(
     httpServer,
-    { cors: { origin: corsOrigin, methods: ['GET', 'POST'] } },
+    {
+      cors: { origin: corsOrigin, methods: ['GET', 'POST'] },
+      // Socket.IO's default is 1 MB per message. Nothing legitimate comes close
+      // to this, and anything stored in a room is fanned out to every player.
+      maxHttpBufferSize: MAX_MESSAGE_BYTES,
+    },
   );
 
   // Database: apply migrations + seed content on boot (non-fatal).
@@ -55,6 +61,10 @@ async function main() {
   const broadcaster = new SocketIoBroadcaster(io);
   const manager = new RoomManager(store, broadcaster, content, persistCompletedGame);
   registerSocketHandlers(io, manager);
+  setInterval(() => {
+    const closed = manager.sweepIdleRooms();
+    if (closed) console.log(`[rooms] closed ${closed} idle room(s)`);
+  }, 5 * 60_000).unref();
 
   // Health + simple ops endpoints
   app.get('/healthz', (_req, res) => res.json({ ok: true, rooms: store.count() }));
