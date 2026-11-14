@@ -3,3 +3,4 @@ export * from './events.js';
 export * from './scoring.js';
 export * from './emoji-rules.js';
 export * from './hints.js';
+export * from './avatars.js';

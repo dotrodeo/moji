@@ -14,7 +14,7 @@ interface Props {
 
 export function Join({ mode, initialCode = '', game, onBack }: Props) {
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState(AVATARS[0]!);
+  const [avatar, setAvatar] = useState<string>(AVATARS[0]);
   const [code, setCode] = useState(initialCode.toUpperCase().slice(0, CODE_LEN));
   const [busy, setBusy] = useState(false);
   const codeInput = useRef<HTMLInputElement>(null);
