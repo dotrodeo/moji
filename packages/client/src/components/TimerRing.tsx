@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { serverNow } from '../clock.js';
 
 const R = 20;
 const CIRC = 2 * Math.PI * R;
@@ -17,9 +18,9 @@ interface Props {
 
 /** Circular SVG countdown ring (design: lime, turns coral ≤10s). */
 export function TimerRing({ deadlineTs, totalMs, size = 96, dangerBelowMs = 10_000, children }: Props) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 100);
+    const id = setInterval(() => setNow(serverNow()), 100);
     return () => clearInterval(id);
   }, []);
 

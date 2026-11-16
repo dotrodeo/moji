@@ -47,11 +47,15 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
 
         {joinMode && (
           <div>
-            <label className="mb-2 block font-mono text-xs uppercase tracking-[2px] text-muted">
+            <label
+              htmlFor="join-code"
+              className="mb-2 block font-mono text-xs uppercase tracking-[2px] text-muted"
+            >
               Room code
             </label>
             <div className="relative" onClick={() => codeInput.current?.focus()}>
               <input
+                id="join-code"
                 ref={codeInput}
                 value={code}
                 onChange={(e) =>
@@ -86,10 +90,14 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
         )}
 
         <div>
-          <label className="mb-2 block font-mono text-xs uppercase tracking-[2px] text-muted">
+          <label
+            htmlFor="join-name"
+            className="mb-2 block font-mono text-xs uppercase tracking-[2px] text-muted"
+          >
             Display name
           </label>
           <input
+            id="join-name"
             value={name}
             onChange={(e) => setName(e.target.value.slice(0, 20))}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
@@ -100,14 +108,18 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
         </div>
 
         <div>
-          <label className="mb-2 block font-mono text-xs uppercase tracking-[2px] text-muted">
+          <div
+            id="join-avatar"
+            className="mb-2 block font-mono text-xs uppercase tracking-[2px] text-muted"
+          >
             Pick your avatar
-          </label>
-          <div className="grid grid-cols-6 gap-2 sm:grid-cols-12">
+          </div>
+          <div role="group" aria-labelledby="join-avatar" className="grid grid-cols-6 gap-2 sm:grid-cols-12">
             {AVATARS.map((a) => (
               <button
                 key={a}
                 onClick={() => setAvatar(a)}
+                aria-pressed={a === avatar}
                 className={cn(
                   'flex aspect-square items-center justify-center rounded-tile border-[2.5px] text-2xl transition-transform hover:scale-105',
                   a === avatar

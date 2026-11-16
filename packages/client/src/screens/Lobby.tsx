@@ -52,6 +52,7 @@ export function LobbyScreen({ game, view }: { game: GameClient; view: RoomView }
             <div className="space-y-3">
               <Setting label="Rounds">
                 <Segmented
+                  label="Rounds"
                   options={ROUND_OPTS.map((v) => ({ label: String(v), value: v }))}
                   value={view.config.rounds}
                   disabled={!isHost}
@@ -60,6 +61,7 @@ export function LobbyScreen({ game, view }: { game: GameClient; view: RoomView }
               </Setting>
               <Setting label="Guess timer">
                 <Segmented
+                  label="Guess timer"
                   options={TIMER_OPTS.map((v) => ({ label: `${v}s`, value: v }))}
                   value={view.config.guessingSeconds}
                   disabled={!isHost}
@@ -68,6 +70,7 @@ export function LobbyScreen({ game, view }: { game: GameClient; view: RoomView }
               </Setting>
               <Setting label="Prompt swaps">
                 <Segmented
+                  label="Prompt swaps"
                   options={RESHUFFLE_OPTS.map((v) => ({ label: v ? String(v) : 'off', value: v }))}
                   value={view.config.reshuffles}
                   disabled={!isHost}
@@ -77,6 +80,7 @@ export function LobbyScreen({ game, view }: { game: GameClient; view: RoomView }
               {view.config.reshuffles > 0 && (
                 <Setting label="Swap cost">
                   <Segmented
+                    label="Swap cost"
                     options={SWAP_COST_OPTS.map((v) => ({
                       label: v ? String(v) : 'free',
                       value: v,
@@ -89,6 +93,7 @@ export function LobbyScreen({ game, view }: { game: GameClient; view: RoomView }
               )}
               <Setting label="Pack mode">
                 <Segmented
+                  label="Pack mode"
                   options={[
                     { label: 'Shared', value: 'shared' as const },
                     { label: 'Mixed', value: 'mixed' as const },
@@ -249,6 +254,7 @@ function PackPill({
     <button
       disabled={disabled}
       onClick={onSelect}
+      aria-pressed={selected}
       className={cn(
         'rounded-pill border-[2.5px] px-3 py-1.5 text-sm transition-all disabled:opacity-50',
         selected

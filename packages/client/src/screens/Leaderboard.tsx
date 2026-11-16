@@ -3,6 +3,7 @@ import type { RoomView } from '@moji/shared';
 import type { GameClient } from '../useGame.js';
 import { Standings } from '../components/Standings.js';
 import { Eyebrow, StickerButton } from '../ui.js';
+import { serverNow } from '../clock.js';
 
 export function Leaderboard({ game, view }: { game: GameClient; view: RoomView }) {
   const rows = view.roundResults ?? [];
@@ -46,9 +47,9 @@ export function Leaderboard({ game, view }: { game: GameClient; view: RoomView }
 }
 
 function useSecondsLeft(deadlineTs: number | null): number {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 250);
+    const id = setInterval(() => setNow(serverNow()), 250);
     return () => clearInterval(id);
   }, []);
   if (!deadlineTs) return 0;

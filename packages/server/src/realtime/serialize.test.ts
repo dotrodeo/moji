@@ -258,3 +258,12 @@ describe('serializeRoomFor — pack labels', () => {
     expect(JSON.stringify(view)).not.toContain('Titanic');
   });
 });
+
+describe('serializeRoomFor — server clock', () => {
+  it("stamps every view with the server's clock, for countdowns on skewed devices", () => {
+    const before = Date.now();
+    const view = serializeRoomFor(snapshot('LOBBY'), 'A');
+    expect(view.serverNow).toBeGreaterThanOrEqual(before);
+    expect(view.serverNow).toBeLessThanOrEqual(Date.now());
+  });
+});

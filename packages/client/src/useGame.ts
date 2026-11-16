@@ -8,6 +8,7 @@ import type {
   RoomView,
 } from '@moji/shared';
 import { NO_ANSWER, emitAck, socket } from './socket.js';
+import { syncClock } from './clock.js';
 import {
   clearToken,
   getStoredAvatar,
@@ -18,6 +19,8 @@ import {
 } from './session.js';
 
 export const GAME_ENDED = 'That game has ended. The room closed while you were away.';
+export const NEW_SEAT =
+  "You were away for over a minute, so you've rejoined as a new player. Your earlier points didn't carry over.";
 
 export interface GameClient {
   connected: boolean;
@@ -27,6 +30,13 @@ export interface GameClient {
   unreachable: boolean;
   /** Bumps each time the room we were in turns out to be gone after a reconnect. */
   roomLost: number;
+  /** Another tab or window took this player's seat; this one is idle until takeBack(). */
+  replaced: boolean;
+  /** Take the seat back from the other tab ("Play here"). */
+  takeBack(): Promise<void>;
+  /** Informational message (not an error), e.g. "you rejoined as a new player". */
+  notice: string | null;
+  clearNotice(): void;
   view: RoomView | null;
   feed: PublicGuess[];
   /** The solvers' side channel for the active clue; empty until we can see it. */
@@ -72,6 +82,10 @@ export function useGame(): GameClient {
   const [hasConnected, setHasConnected] = useState(socket.connected);
   const [unreachable, setUnreachable] = useState(false);
   const [roomLost, setRoomLost] = useState(0);
+  const [replaced, setReplaced] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  /** Readable from socket callbacks: a replaced tab must not rejoin on its own. */
+  const replacedRef = useRef(false);
   const activeAuthorRef = useRef<string | null>(null);
   /** The room code we're in, readable from socket callbacks without re-subscribing. */
   const roomCodeRef = useRef<string | null>(null);
@@ -93,7 +107,9 @@ export function useGame(): GameClient {
      */
     const rejoin = () => {
       const code = roomCodeRef.current;
-      if (!code || tokenRoomCode() !== code) return;
+      // A tab that lost its seat to another tab stays put until asked: if it
+      // rejoined on its own, two tabs would take the seat back and forth.
+      if (!code || replacedRef.current || tokenRoomCode() !== code) return;
       emitAck<JoinRoomResult>('room:join', {
         code,
         sessionToken: getToken(),
@@ -103,6 +119,7 @@ export function useGame(): GameClient {
         .then((res) => {
           saveSession(res.sessionToken, getStoredName() || 'Player', getStoredAvatar());
           setMyId(res.playerId);
+          if (res.newSeat) setNotice(NEW_SEAT);
         })
         .catch((err: unknown) => {
           // No answer isn't "the room is gone": keep the screen and say so. The
@@ -159,12 +176,17 @@ export function useGame(): GameClient {
         setHint((cur) => cur ?? next.activeClue?.hint ?? null);
       }
       roomCodeRef.current = next.code;
+      syncClock(next.serverNow);
       setView(next);
     };
     const onGuess = (g: PublicGuess) => setFeed((f) => [...f, g].slice(-100));
     const onChat = (m: ChatMessage) =>
       setChat((c) => (c.some((x) => x.id === m.id) ? c : [...c, m].slice(-100)));
     const onHint = (h: string) => setHint(h);
+    const onReplaced = () => {
+      replacedRef.current = true;
+      setReplaced(true);
+    };
 
     socket.on('connect', onConnect);
     socket.on('connect_error', onConnectError);
@@ -173,6 +195,7 @@ export function useGame(): GameClient {
     socket.on('guess:new', onGuess);
     socket.on('clue:hint', onHint);
     socket.on('chat:new', onChat);
+    socket.on('session:replaced', onReplaced);
     return () => {
       socket.off('connect', onConnect);
       socket.off('connect_error', onConnectError);
@@ -181,6 +204,7 @@ export function useGame(): GameClient {
       socket.off('guess:new', onGuess);
       socket.off('clue:hint', onHint);
       socket.off('chat:new', onChat);
+      socket.off('session:replaced', onReplaced);
     };
   }, []);
 
@@ -195,7 +219,32 @@ export function useGame(): GameClient {
     );
     saveSession(res.sessionToken, displayName, avatar);
     setMyId(res.playerId);
+    replacedRef.current = false;
+    setReplaced(false);
+    if (res.newSeat) setNotice(NEW_SEAT);
     return res;
+  }, [surfaced]);
+
+  /**
+   * "Play here": resume the seat in this tab. The server hands it over and
+   * tells the other tab, which then shows the same screen this one did.
+   */
+  const takeBack = useCallback<GameClient['takeBack']>(async () => {
+    const code = roomCodeRef.current;
+    if (!code) return;
+    const res = await surfaced(
+      emitAck<JoinRoomResult>('room:join', {
+        code,
+        sessionToken: getToken(),
+        displayName: getStoredName() || 'Player',
+        avatar: getStoredAvatar(),
+      }),
+    );
+    saveSession(res.sessionToken, getStoredName() || 'Player', getStoredAvatar());
+    setMyId(res.playerId);
+    replacedRef.current = false;
+    setReplaced(false);
+    if (res.newSeat) setNotice(NEW_SEAT);
   }, [surfaced]);
 
   const joinSolo = useCallback<GameClient['joinSolo']>(async (displayName, avatar) => {
@@ -206,6 +255,8 @@ export function useGame(): GameClient {
     );
     saveSession(res.sessionToken, displayName, avatar);
     setMyId(res.playerId);
+    replacedRef.current = false;
+    setReplaced(false);
     return res;
   }, [surfaced]);
 
@@ -228,8 +279,12 @@ export function useGame(): GameClient {
     } catch {
       /* leaving best-effort */
     }
-    clearToken();
+    // A tab whose seat was taken by another tab doesn't own the session any
+    // more: clearing the shared token would strand the tab that does.
+    if (!replacedRef.current) clearToken();
     roomCodeRef.current = null;
+    replacedRef.current = false;
+    setReplaced(false);
     setMyId(null);
     setFeed([]);
     setChat([]);
@@ -253,12 +308,17 @@ export function useGame(): GameClient {
   const skip = useCallback<GameClient['skip']>(() => surfaced(emitAck('host:skip')), [surfaced]);
   const next = useCallback<GameClient['next']>(() => surfaced(emitAck('host:next')), [surfaced]);
   const clearError = useCallback(() => setError(null), []);
+  const clearNotice = useCallback(() => setNotice(null), []);
 
   return {
     connected,
     hasConnected,
     unreachable,
     roomLost,
+    replaced,
+    takeBack,
+    notice,
+    clearNotice,
     view,
     feed,
     chat,

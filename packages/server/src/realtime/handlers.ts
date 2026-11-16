@@ -127,13 +127,13 @@ export function registerSocketHandlers(io: Io, manager: RoomManager): void {
           if (!request.code && !createLimiter.allow(who)) {
             throw new Error("You've started a lot of games. Wait a few minutes and try again.");
           }
-          const { room, playerId, sessionToken } = manager.join(socket.id, request);
+          const { room, playerId, sessionToken, newSeat } = manager.join(socket.id, request);
           if (socket.data.roomCode !== room.code) leaveChannel(socket);
           socket.data.playerId = playerId;
           socket.data.roomCode = room.code;
           socket.join(manager.socketRoomName(room.code));
           joined = room;
-          return { code: room.code, playerId, sessionToken };
+          return { code: room.code, playerId, sessionToken, ...(newSeat ? { newSeat } : {}) };
         },
         // Push an authoritative snapshot now that the socket is bound + joined.
         () => {
