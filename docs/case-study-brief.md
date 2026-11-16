@@ -146,9 +146,10 @@ exactly the fiction that counter was written to replace.
 
 ### 3.5 Seams instead of premature infrastructure
 
-Live room state is in-process memory behind a `RoomStore` interface (39 lines) explicitly so it can
-become Redis-backed later without touching the state machine. Same pattern for `Broadcaster` (how
-messages ship) and `ContentProvider` (where prompts come from). Postgres is touched only for content
+Live room state is in-process memory behind a `RoomStore` interface (40 lines), so rooms are only
+reached one way. It stores live `Room` objects with their timers, so it is honest about being
+single-process: scaling out would mean sticky routing per room, not swapping in Redis. Same pattern
+for `Broadcaster` (how messages ship) and `ContentProvider` (where prompts come from). Postgres is touched only for content
 and a fire-and-forget record when a game completes — **live play never hits the database**, so a DB
 outage degrades rather than breaks.
 

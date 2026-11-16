@@ -61,8 +61,10 @@ Break these only on purpose.
   absent from the payload of anyone not entitled to it — that is the author, anyone who has
   already solved it, and everyone once the clue resolves. Any new field on a clue/room needs a
   decision in that file.
-- **Live room state is in memory, behind a seam.** `packages/server/src/rooms/RoomStore.ts` exists
-  so state can move to Redis later without touching the state machine. Keep room mutation behind it.
+- **Live room state is in memory, behind a seam.** `packages/server/src/rooms/RoomStore.ts` is where
+  rooms are looked up, so keep room access behind it. It stores live `Room` objects, phase timers
+  included, so it is *not* a drop-in point for Redis: scaling past one process would mean routing a
+  room's players to the process that owns it (sticky routing), not swapping the store.
 - **Scoring is pure and config-driven.** `packages/shared/src/scoring.ts` — the state machine
   hard-codes no constants. Guesser points decay linearly 1000 → 150 across the guess window.
   **Author points are time-weighted per solver:** each solve pays `100 + 150 × (howLongItTook /
