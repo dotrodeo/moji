@@ -1,8 +1,9 @@
 /**
- * RoomStore seam (design doc §4 / Appendix B). The only hard scaling change is
- * where live room state lives. For the MVP it's in process memory; later this
- * same interface gets a Redis-backed implementation (authoritative snapshot +
- * per-room lock) without touching game logic.
+ * RoomStore seam (design doc §4 / Appendix B): the one place rooms are looked
+ * up. It holds live Room objects, phase timers included, so it is not a
+ * drop-in point for an external store like Redis: a Room's timers only run in
+ * the process that holds it. Scaling past one process means routing each
+ * room's players to the process that owns it (sticky routing).
  */
 import type { Room } from './Room.js';
 
