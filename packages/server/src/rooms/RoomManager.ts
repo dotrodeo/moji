@@ -41,6 +41,8 @@ export interface JoinOutcome {
   room: Room;
   playerId: string;
   sessionToken: string;
+  /** See JoinRoomResult.newSeat. */
+  newSeat?: boolean;
 }
 
 export class RoomManager implements RoomHooks {
@@ -75,13 +77,13 @@ export class RoomManager implements RoomHooks {
    */
   join(socketId: string, payload: JoinRoomPayload): JoinOutcome {
     const prior = this.socketToPlayer.get(socketId);
-    const outcome = this.resolveJoin(payload);
+    const outcome = this.resolveJoin(socketId, payload);
     if (prior && prior.playerId !== outcome.playerId) this.leaveBinding(prior);
     this.bind(socketId, outcome.room.code, outcome.playerId);
     return outcome;
   }
 
-  private resolveJoin(payload: JoinRoomPayload): JoinOutcome {
+  private resolveJoin(socketId: string, payload: JoinRoomPayload): JoinOutcome {
     const displayName = sanitizeName(payload.displayName);
     const requestedCode = payload.code?.toUpperCase();
 
@@ -95,7 +97,7 @@ export class RoomManager implements RoomHooks {
       const room = this.store.get(token.roomCode);
       if (room && room.hasPlayer(token.playerId)) {
         this.cancelGrace(token.playerId);
-        this.forgetOtherSockets(token.playerId);
+        this.forgetOtherSockets(token.playerId, socketId);
         room.setConnection(token.playerId, 'CONNECTED');
         return {
           room,
@@ -128,10 +130,15 @@ export class RoomManager implements RoomHooks {
 
     const role = payload.asSpectator ? 'spectator' : 'player';
     const player = room.addPlayer(displayName, role, payload.avatar || DEFAULT_AVATAR);
+    // They came back to this room with its token, but the seat had already
+    // been given up (away past the grace period): say so, rather than letting
+    // them discover their score is gone.
+    const newSeat = !!token && token.roomCode === room.code;
     return {
       room,
       playerId: player.id,
       sessionToken: issueSessionToken(player.id, room.code),
+      ...(newSeat ? { newSeat } : {}),
     };
   }
 
@@ -192,13 +199,16 @@ export class RoomManager implements RoomHooks {
   }
 
   /**
-   * A resumed seat belongs to the socket resuming it. Any older socket still
-   * bound to the same player (the connection the player just replaced) stops
-   * acting for them, instead of staying half-attached.
+   * A resumed seat belongs to the socket resuming it: the newest tab wins.
+   * Any other socket still bound to the same player (another tab, or the
+   * connection this one replaced) stops acting for them and is told why, so
+   * that tab can say "open in another tab" instead of silently going stale.
    */
-  private forgetOtherSockets(playerId: string): void {
+  private forgetOtherSockets(playerId: string, keepSocketId: string): void {
     for (const [socketId, binding] of this.socketToPlayer) {
-      if (binding.playerId === playerId) this.socketToPlayer.delete(socketId);
+      if (binding.playerId !== playerId || socketId === keepSocketId) continue;
+      this.socketToPlayer.delete(socketId);
+      this.broadcaster.toSocket(socketId, 'session:replaced');
     }
   }
 

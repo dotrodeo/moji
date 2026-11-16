@@ -1,4 +1,5 @@
 import type { RoomView } from '@moji/shared';
+import { StickerButton } from './ui.js';
 
 // All game screens now live in src/screens/ (Landing, Join, Lobby, Prompt,
 // Create, Guess, Reveal, Leaderboard, Winner). SplashScreen is a transient
@@ -15,6 +16,28 @@ export function JoiningNextRound() {
         free to guess along in the meantime!
       </p>
     </div>
+  );
+}
+
+/**
+ * This tab lost its seat to another tab or window (the newest one wins). Say so
+ * plainly, and let the player pull the game back here with one tap.
+ */
+export function OpenElsewhere({ onPlayHere }: { onPlayHere: () => void }) {
+  return (
+    <main className="mx-auto mt-24 max-w-md animate-moji-pop px-4 text-center">
+      <div className="animate-moji-float text-6xl" aria-hidden="true">
+        🪟
+      </div>
+      <h1 className="mt-4 font-display text-3xl font-extrabold">This game is open in another tab</h1>
+      <p className="mt-2 text-muted">
+        You opened it somewhere else, so that tab is playing now. You can keep playing there, or
+        bring the game back here.
+      </p>
+      <StickerButton className="mt-6" onClick={onPlayHere}>
+        Play here
+      </StickerButton>
+    </main>
   );
 }
 

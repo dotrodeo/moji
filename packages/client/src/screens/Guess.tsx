@@ -435,6 +435,7 @@ function ChatInput({
           onKeyDown={(e) => e.key === 'Enter' && send()}
           disabled={disabled}
           placeholder={disabled ? 'chat closes with the clue…' : 'say something…'}
+          aria-label="Message the other players who solved it"
           maxLength={200}
           className="w-full rounded-tile border-2 border-cyan/40 bg-inset px-4 py-2.5 outline-none focus:border-cyan disabled:opacity-50"
         />
@@ -500,6 +501,7 @@ function GuessInput({
           onKeyDown={(e) => e.key === 'Enter' && send()}
           disabled={disabled}
           placeholder={disabled ? 'get ready…' : 'type your guess…'}
+          aria-label="Your guess"
           maxLength={MAX_GUESS_LENGTH}
           className="w-full rounded-tile border-2 border-hairline2 bg-inset px-4 py-2.5 outline-none focus:border-lime disabled:opacity-50"
           ref={inputRef}

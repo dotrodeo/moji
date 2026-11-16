@@ -45,6 +45,8 @@ interface SegmentedProps<T extends string | number> {
   value: T;
   onChange: (v: T) => void;
   disabled?: boolean;
+  /** Accessible name for the group, e.g. the setting it controls. */
+  label?: string;
 }
 
 /** Pill segmented control; selected segment is a gold sticker. */
@@ -53,14 +55,20 @@ export function Segmented<T extends string | number>({
   value,
   onChange,
   disabled,
+  label,
 }: SegmentedProps<T>) {
   return (
-    <div className="inline-flex gap-1 rounded-pill border border-hairline2 bg-inset p-1">
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex gap-1 rounded-pill border border-hairline2 bg-inset p-1"
+    >
       {options.map((o) => (
         <button
           key={String(o.value)}
           disabled={disabled}
           onClick={() => onChange(o.value)}
+          aria-pressed={o.value === value}
           className={cn(
             'rounded-pill px-3 py-1.5 font-mono text-sm transition-all disabled:opacity-50',
             o.value === value

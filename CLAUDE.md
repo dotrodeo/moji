@@ -35,6 +35,16 @@ Break these only on purpose.
   (everyone built / everyone solved) counts only connected players who haven't solved, and
   re-checks when someone actually leaves, not when they blip: a brief drop must not cost anyone
   their clue or their guess.
+- **One seat, newest tab wins.** All tabs of a browser share one session token, so a second tab
+  opening the room resumes the same seat. The server moves the seat to the newest socket and sends
+  `session:replaced` to the one it took it from. That tab shows "open in another tab" with a
+  **Play here** button, and must never rejoin on its own, or two tabs would trade the seat back
+  and forth. A tab that leaves while replaced must not clear the shared token. A returning player
+  whose seat was already given up (away past the grace period) gets `newSeat: true` on the join
+  ack, and the client says so: their old points don't carry over.
+- **Countdowns use the server's clock.** `deadlineTs` is server time and devices drift, so every
+  `RoomView` carries `serverNow` and the client counts down with `serverNow()` from `clock.ts`.
+  Never compare a deadline with `Date.now()`.
 - **Every command failure reaches the player.** `useGame` routes each command's rejection to the
   app banner (the server's own message, or "didn't answer" after 10 s). A guess the server turns
   away comes back as a result with a `reason`, shown inline. The Create screen runs the shared

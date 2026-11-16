@@ -185,6 +185,12 @@ export interface RoomView {
   version: number;
   /** server epoch ms at which the current timed phase ends, if any */
   deadlineTs: number | null;
+  /**
+   * The server's clock (epoch ms) when this view was built. Countdowns compare
+   * deadlineTs against server time, not the device's clock, which can be off
+   * by seconds or minutes.
+   */
+  serverNow: number;
   config: RoomConfig;
   /** content packs the host can choose from (static for the room) */
   packs: Pack[];

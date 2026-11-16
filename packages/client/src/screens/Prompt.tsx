@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { RoomView } from '@moji/shared';
 import { TimerRing } from '../components/TimerRing.js';
 import { Eyebrow, cn } from '../ui.js';
+import { serverNow } from '../clock.js';
 
 const PROMPT_TOTAL_MS = 3100; // matches the server PROMPT_ASSIGNMENT phase
 
@@ -64,9 +65,9 @@ export function PromptAssignment({ view }: { view: RoomView }) {
 
 /** Ticking 3 → 2 → 1 → GO! beat for the countdown ring center. */
 function CountBeat({ deadlineTs }: { deadlineTs: number | null }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 100);
+    const id = setInterval(() => setNow(serverNow()), 100);
     return () => clearInterval(id);
   }, []);
   const remaining = deadlineTs ? Math.max(0, deadlineTs - now) : 0;

@@ -9,12 +9,26 @@ import { MAX_EMOJIS, promptHasNumber, validateClue, type RoomView } from '@moji/
 import type { GameClient } from '../useGame.js';
 import { EMOJI_CATS, type EmojiCat, type EmojiData, loadEmojiData } from '../data/emoji.js';
 import { Eyebrow, Panel, StickerButton, cn } from '../ui.js';
+import { serverNow } from '../clock.js';
 
 export function ClueScreen({ game, view }: { game: GameClient; view: RoomView }) {
   const [emojis, setEmojis] = useState<string[]>([]);
   const [cat, setCat] = useState<EmojiCat>('Smileys');
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
+  // One swap at a time: a double tap used to send two swaps and charge twice.
+  const [swapping, setSwapping] = useState(false);
+  const swap = async () => {
+    if (swapping) return;
+    setSwapping(true);
+    try {
+      await game.reshuffle();
+    } catch {
+      /* useGame shows the reason in the app banner */
+    } finally {
+      setSwapping(false);
+    }
+  };
   const [data, setData] = useState<EmojiData | null>(null);
 
   useEffect(() => {
@@ -68,8 +82,10 @@ export function ClueScreen({ game, view }: { game: GameClient; view: RoomView })
           <div className="font-display text-2xl font-extrabold sm:text-3xl">{view.yourPrompt}</div>
           {view.youCanReshuffle && (
             <button
-              onClick={() => game.reshuffle()}
-              className="mt-1 font-mono text-xs uppercase tracking-[1.5px] text-muted hover:text-cyan"
+              onClick={swap}
+              disabled={swapping}
+              aria-busy={swapping}
+              className="mt-1 font-mono text-xs uppercase tracking-[1.5px] text-muted hover:text-cyan disabled:opacity-50"
             >
               🎲 stuck? swap prompt (
               {view.config.reshuffleCost > 0 ? `−${view.config.reshuffleCost} pts · ` : ''}
@@ -122,6 +138,7 @@ export function ClueScreen({ game, view }: { game: GameClient; view: RoomView })
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="search all emoji… (lion, pizza, heart)"
+              aria-label="Search emoji"
               className="w-full bg-transparent outline-none placeholder:text-muted-4"
             />
           </div>
@@ -362,9 +379,9 @@ function Submitted({ view }: { view: RoomView }) {
 }
 
 function TimerChip({ deadlineTs }: { deadlineTs: number | null }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 200);
+    const id = setInterval(() => setNow(serverNow()), 200);
     return () => clearInterval(id);
   }, []);
   const remaining = deadlineTs ? Math.max(0, deadlineTs - now) : 0;

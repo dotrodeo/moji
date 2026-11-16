@@ -179,3 +179,57 @@ describe('RoomManager: saving games', () => {
     expect(saved).toEqual([1, 2]);
   });
 });
+
+describe('RoomManager: one seat, newest tab wins', () => {
+  const spyBroadcaster = () => {
+    const sent: { socketId: string; event: string }[] = [];
+    const b = {
+      toSocket: (socketId: string, event: string) => sent.push({ socketId, event }),
+      toRoom() {},
+    } as unknown as Broadcaster;
+    return { b, sent };
+  };
+
+  it('tells the replaced tab, and only that tab, that its seat moved', () => {
+    const { b, sent } = spyBroadcaster();
+    const mgr = new RoomManager(new InMemoryRoomStore(), b, fakeContent, async () => {});
+    const first = mgr.join('tab1', { displayName: 'Alice' });
+    mgr.join('tab2', { displayName: 'Alice', code: first.room.code, sessionToken: first.sessionToken });
+    const replaced = sent.filter((s) => s.event === 'session:replaced');
+    expect(replaced).toEqual([{ socketId: 'tab1', event: 'session:replaced' }]);
+  });
+
+  it('does not tell a socket it replaced itself when it resumes its own seat', () => {
+    const { b, sent } = spyBroadcaster();
+    const mgr = new RoomManager(new InMemoryRoomStore(), b, fakeContent, async () => {});
+    const first = mgr.join('tab1', { displayName: 'Alice' });
+    mgr.join('tab1', { displayName: 'Alice', code: first.room.code, sessionToken: first.sessionToken });
+    expect(sent.filter((s) => s.event === 'session:replaced')).toEqual([]);
+  });
+
+  it('flags a returning player whose seat was given up as a new seat', () => {
+    const mgr = newManager();
+    const host = mgr.join('host', { displayName: 'Host' });
+    const away = mgr.join('away', { displayName: 'Away', code: host.room.code });
+    mgr.leave('away'); // what the grace timer does after 60 s away
+    const back = mgr.join('back', {
+      displayName: 'Away',
+      code: host.room.code,
+      sessionToken: away.sessionToken,
+    });
+    expect(back.newSeat).toBe(true);
+    expect(back.playerId).not.toBe(away.playerId);
+  });
+
+  it('does not flag an ordinary resume or a first join as a new seat', () => {
+    const mgr = newManager();
+    const host = mgr.join('host', { displayName: 'Host' });
+    expect(host.newSeat).toBeUndefined();
+    const resumed = mgr.join('host2', {
+      displayName: 'Host',
+      code: host.room.code,
+      sessionToken: host.sessionToken,
+    });
+    expect(resumed.newSeat).toBeUndefined();
+  });
+});

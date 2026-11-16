@@ -39,6 +39,7 @@ export function serializeRoomFor(snap: RoomSnapshot, recipientId: string): RoomV
     phase: snap.phase,
     version: snap.version,
     deadlineTs: snap.deadlineTs,
+    serverNow: Date.now(),
     config: snap.config,
     packs: snap.packs,
     players: snap.players,

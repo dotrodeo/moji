@@ -37,6 +37,12 @@ export interface JoinRoomResult {
   code: string;
   playerId: string;
   sessionToken: string;
+  /**
+   * True when the request carried a session token for this room but that seat
+   * was already gone (away past the disconnect grace period), so this is a
+   * fresh player: the old seat and its score didn't survive.
+   */
+  newSeat?: boolean;
 }
 
 export interface ConfigureRoomPayload {
@@ -104,6 +110,12 @@ export interface ServerToClientEvents {
   'host:changed': (hostId: string) => void;
   /** Recoverable/informational error not tied to a specific command ack. */
   error: (message: string) => void;
+  /**
+   * Another tab or window resumed this player's seat, so this socket no longer
+   * acts for them. The newest tab wins; this one should say so and offer to
+   * take the seat back.
+   */
+  'session:replaced': () => void;
 }
 
 // Reserved for inter-server events once we scale out (Redis adapter).
