@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PublicStats } from '@moji/shared';
-import { Eyebrow, Panel, StickerButton, Wordmark, cn } from '../ui.js';
+import { ClueTile, cn, Eyebrow, Panel, StickerButton, Wordmark } from '../ui.js';
 
 const FLOATING = ['🦁', '👑', '🌅', '🍕', '🚀', '🎬'];
 
@@ -92,7 +92,7 @@ export function Landing({
               no code, no lobby, no waiting for a second player. */}
           <button
             onClick={onSolo}
-            className="font-mono text-xs uppercase tracking-[1.5px] text-muted underline decoration-dotted underline-offset-4 hover:text-cyan"
+            className="font-mono text-xs uppercase tracking-eyebrow text-muted underline decoration-dotted underline-offset-4 hover:text-cyan"
           >
             🤖 or play a quick round vs Mojibot
           </button>
@@ -116,12 +116,7 @@ export function Landing({
           <Eyebrow className="text-cyan">🦊 BEX'S CLUE · NAME THE MOVIE</Eyebrow>
           <div className="my-5 flex flex-wrap justify-center gap-2 text-4xl">
             {FLOATING.map((e, i) => (
-              <span
-                key={i}
-                className="inline-flex h-14 w-14 items-center justify-center rounded-tile border-[2.5px] border-outline bg-paper shadow-sticker-sm"
-              >
-                {e}
-              </span>
+              <ClueTile key={i} emoji={e} className="text-4xl" />
             ))}
           </div>
           <div className="space-y-1.5">
@@ -138,7 +133,7 @@ export function Landing({
           <Panel key={s.n} className="p-5">
             <span
               className={cn(
-                'mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full border-[2.5px] border-outline font-display font-extrabold text-outline shadow-sticker-sm',
+                'mb-3 inline-flex h-9 w-9 items-center justify-center rounded-full border-sticker border-outline font-display font-extrabold text-outline shadow-sticker-sm',
                 s.chip,
               )}
             >

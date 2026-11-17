@@ -1,6 +1,7 @@
 import type { ActiveClueView, ChatMessage, RoomView } from '@moji/shared';
 import type { GameClient } from '../useGame.js';
-import { Eyebrow, Panel, cn } from '../ui.js';
+import { Caption, ClueTile, cn, Eyebrow, Panel } from '../ui.js';
+import { BumpButton } from '../components/BumpButton.js';
 
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -31,12 +32,7 @@ export function RevealScreen({ game, view }: { game: GameClient; view: RoomView 
 
           <div className="mt-6 inline-grid grid-cols-5 gap-2">
             {clue.emojis.map((e, i) => (
-              <span
-                key={i}
-                className="flex h-14 w-14 items-center justify-center rounded-tile border-[2.5px] border-outline bg-paper text-3xl shadow-sticker-sm"
-              >
-                {e}
-              </span>
+              <ClueTile key={i} emoji={e} />
             ))}
           </div>
 
@@ -75,37 +71,12 @@ export function RevealScreen({ game, view }: { game: GameClient; view: RoomView 
               note={clue.bumpPoints > 0 ? `includes 👏 +${clue.bumpPoints}` : undefined}
             />
           </div>
-          <div className="text-center font-mono text-xs uppercase tracking-[2px] text-cyan">
+          <div className="text-center font-mono text-xs uppercase tracking-eyebrow text-cyan">
             <span className="mr-1 inline-block animate-moji-float">⏭️</span> next up…
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * Applause, and the only scoring input the room has after the buzzer. Open to
- * everyone here (not just solvers) because the answer is out — nobody can be
- * tipped off by a bump any more.
- */
-function BumpButton({ clue, onBump }: { clue: ActiveClueView; onBump: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onBump}
-      disabled={!clue.youCanBump}
-      className={cn(
-        'inline-flex items-center gap-2 rounded-pill border-[2.5px] px-3 py-1.5 font-display text-sm font-extrabold transition-all',
-        'hover:-translate-y-0.5 disabled:pointer-events-none',
-        clue.youBumped
-          ? 'border-outline bg-gold text-outline shadow-sticker-sm'
-          : 'border-gold text-gold hover:bg-gold hover:text-outline',
-      )}
-    >
-      👏 {clue.youBumped ? 'bumped' : 'bump'}
-      {clue.bumps > 0 && <span className="font-mono text-xs opacity-80">×{clue.bumps}</span>}
-    </button>
   );
 }
 
@@ -163,11 +134,11 @@ function Stat({
 }) {
   return (
     <Panel className="p-3">
-      <div className="font-mono text-[10px] uppercase tracking-[2px] text-muted">{label}</div>
+      <Caption>{label}</Caption>
       <div className={cn('mt-1 font-display font-extrabold', accent ? 'text-gold' : 'text-paper')}>
         {value}
       </div>
-      {note && <div className="mt-0.5 font-mono text-[10px] text-muted-3">{note}</div>}
+      {note && <div className="mt-0.5 font-mono text-caption text-muted-3">{note}</div>}
     </Panel>
   );
 }

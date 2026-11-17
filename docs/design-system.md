@@ -1,13 +1,13 @@
 # Moji design system — "Retro Internet Party"
 
-**Status:** reconstructed from the code on 2026-11-17. The original design handoff that the code
+**Status:** reconstructed from the code on 2026-11-17, and the code tidied to match it in v1.2.1. The original design handoff that the code
 cites ("design handoff README", "§sticker treatment") is lost, like the original design doc. The code
 is the source of truth: tokens live in `packages/client/tailwind.config.ts`, the canvas in
 `packages/client/src/index.css`, and the shared components in `packages/client/src/ui.tsx`. Where
 this document and the code disagree, the code wins, and this file should be fixed.
 
-Places where the code doesn't yet follow its own system are listed under [Known drift](#known-drift)
-at the end. That list is the to-do for the tidy-up pass.
+Places where the code still doesn't follow the system are listed under [Known drift](#known-drift)
+at the end.
 
 ## Principles
 
@@ -34,14 +34,11 @@ components.
 | Token | Hex | Use |
 |---|---|---|
 | `ink` | `#100619` | The page canvas (`body`). |
-| `screen` | `#15091f` | Unused. |
 | `panel` | `#1a0d2c` | Cards and panels (`Panel`). |
 | `panel2` | `#1d0f30` | Rows inside a panel (standings, lobby players). |
 | `inset` | `#120720` | Recessed areas: inputs, the segmented-control track. |
 | `outline` | `#160826` | The sticker outline and hard shadow, and the text color on every accent fill. |
-| `hairline` | `#2c1a42` | Rare dividers. |
-| `hairline2` | `#34204e` | The default border for panels, inputs and idle controls. |
-| `hairline3` | `#2a1842` | Rare dividers. |
+| `hairline2` | `#34204e` | Every hairline: borders on panels, inputs and idle controls, dividers, the timer-ring track, the lower podium plinths. |
 
 ### Text
 
@@ -51,7 +48,6 @@ components.
 | `text-2` | `#D6C6EC` | 12.4:1 | Secondary emphasis. |
 | `text-3` | `#C9B8E8` | — | Second place in standings. |
 | `muted` | `#B79FD4` | 8.4:1 | Secondary text, labels, idle controls. The workhorse (54 uses). |
-| `muted-2` | `#9d86bd` | — | Unused. |
 | `muted-3` | `#8a72ab` | 4.8:1 | Tertiary text. The faintest shade allowed for words a player needs to read. |
 | `muted-4` | `#7c64a0` | 3.9:1 | Placeholders and empty slots only. Below AA for body text. |
 | `muted-5` | `#5a3c78` | 2.2:1 | Decoration only. Never for text. |
@@ -72,8 +68,8 @@ canvas, every accent also works as a text color (pink 6.1:1 and coral 6.3:1 are 
 | `coral` | `#FF5468` | **Error / danger.** | The error banner, clue-rule errors, a timer in its last seconds, "Time's up!", negative deltas. |
 | `orange` | `#FFB02E` | **Warning / connection.** | The "Reconnecting…" bar, the 10-emoji cap. |
 
-Each accent has a `-light` tint (`pink-light`, `cyan-light`, …) for hover text and third place.
-`lime-light`, `gold-light` and `mint-light` are unused.
+Two accents have a `-light` tint: `pink-light` (third place in standings) and `cyan-light` (hover
+on cyan text links). The others don't need one.
 
 Soft tinted backgrounds use the accent at low opacity: `bg-gold/10` (your row), `bg-mint/10` (a ready
 player), `bg-mint/20` and `bg-coral/20` (score-delta pills).
@@ -97,10 +93,12 @@ loaded from Google Fonts in `index.html`.
 | Hero and screen titles | `font-display text-3xl` to `text-4xl`, growing to `sm:text-5xl` (landing headline, reveal, winner) |
 | Section / prompt | `font-display text-2xl sm:text-3xl` |
 | Body | `text-base`; `text-sm` for secondary; `text-lg` for primary inputs |
-| Eyebrow (label) | `Eyebrow`: `font-mono text-xs uppercase tracking-[2px] text-muted`, often recolored by role |
+| Eyebrow (label) | `Eyebrow`: `font-mono text-xs uppercase tracking-eyebrow` (2px), `text-muted` unless recolored by role |
+| Caption (small label) | `Caption`: `font-mono text-caption uppercase tracking-caption` (10px, 1.5px), colored by `tone` |
 | Numbers | `font-mono`, usually `text-gold` for scores |
 
-Inputs are at least 16px (`text-base`/`text-lg`) so iOS doesn't zoom on focus.
+Those are the only two label styles. A mono uppercase label is one or the other; don't invent a
+third tracking. Inputs are at least 16px (`text-base`/`text-lg`) so iOS doesn't zoom on focus.
 
 ## Shape
 
@@ -119,7 +117,7 @@ Three weights, each with one job:
 
 | Weight | Where | Color |
 |---|---|---|
-| **2.5px** (the sticker outline) | Anything that is a sticker: buttons, tiles, avatars, chips, the selected segment | `border-outline` (or `border-pink` on the secondary button) |
+| **2.5px** (`border-sticker`, the sticker outline) | Anything that is a sticker: buttons, tiles, avatars, chips, the selected segment | `border-outline` (or `border-pink` on the secondary button) |
 | **2px** | Inputs and code slots | `border-hairline2`, turning to an accent on focus or when filled |
 | **1px** | Structure: panels, rows, the segmented track | `border-hairline2` |
 
@@ -135,13 +133,11 @@ exception is the landing page's tilted sample-clue card, which is drawn as a big
 | `shadow-sticker-lg` | 5px | Something lifted: a tile being dragged in the clue tray, the tilted sample-clue card on the landing page. |
 | `shadow-sticker-hover` | 6px | A button under the pointer. |
 | `shadow-sticker-press` | 1px | A button being pressed. |
+| `shadow-sticker-pink` / `-pink-hover` | 4px / 6px | The secondary (`outline`) button: the same sticker shadow in brand pink. |
 
 **Interaction:** hover lifts (`-translate-x-0.5 -translate-y-0.5` plus the hover shadow); press
 sinks (`translate-x-0.5 translate-y-0.5` plus the press shadow), so the sticker appears to move
 over its own shadow. Disabled is `opacity-50` with no pointer events.
-
-The secondary (`outline`) button uses the same shadow in **pink** (4px, and 6px on hover). It isn't
-a token yet (see drift).
 
 ## Motion
 
@@ -175,25 +171,32 @@ draw on this canvas directly; panels sit on top of it.
 | `Segmented` | A pill segmented control. The selected option is a gold sticker. | `options`, `value`, `onChange`, `disabled`, `label` (the group's accessible name). Sets `aria-pressed`. |
 | `Avatar` | The player's emoji on a colored sticker tile. The color is derived from the player id (pink, cyan, lime, gold, mint or orange), so a player keeps their color all game. | `emoji`, `id`, size via `className`. |
 | `Wordmark` | The MOJI logo: four tilted letter tiles (M pink −3°, O cyan +2°, J lime −2°, I gold +3°). | `size`: `md`, `lg`. |
+| `Caption` | The small mono label (10px). | `tone`: `muted` (default), `faint`, `cyan`. |
+| `ClueTile` | One clue emoji on its paper sticker tile. | `emoji`; `size`: `sm` (default, 3px shadow) or `lg` (the clue being guessed: 4px shadow, grows at `sm`). |
+| `ToggleChip` | A pill that is on or off (emoji categories, pack choices). Idle is quiet; selected is a sticker in its role's accent. | `selected`; `accent`: `pink` (your selection, default) or `cyan` (information, e.g. the pack). Sets `aria-pressed`. |
+| `TextButton` | A button that reads as a link (back, leave, copy link). | `tone`: `muted` (default) or `cyan`. |
+| `Banner` | The full-width bar pinned to the top. | `tone`: `status` (orange, connection), `error` (coral, `role="alert"`), `info` (cyan). Optional `onClick` (tap to dismiss). |
+| `fieldClass(role)` | Classes for a text input; add padding and size per use. | `role`: `lime` (guessing, searching), `pink` (your name), `cyan` (solver chat, tinted at rest). |
+| `BumpButton` (`components/`) | Applause for a clue, paying the author. | `clue`, `onBump`, `wide` (the Guess screen's solved banner). |
 | `cn` | Joins class names, dropping falsy ones. | — |
 
-### Patterns not yet extracted into components
+### Focus color follows the accent roles
 
-These recur across screens with the same classes, and are part of the system:
+An input's focus border is the accent of the role it plays: **lime** where you act (guessing,
+searching emoji), **pink** for something that is yours (your name), **cyan** for an information
+space (the solvers' chat, which is also tinted cyan at rest). `fieldClass(role)` encodes this; the
+emoji search box applies the same lime with `focus-within` on its wrapper.
 
-- **Clue tile.** An emoji on `bg-paper`, `rounded-tile`, a 2.5px `border-outline`, and `shadow-sticker`
-  (or `-sm` when small). Sizes are `h-14 w-14 text-3xl`, growing to `sm:h-20 sm:w-20 sm:text-5xl`
-  for the clue being guessed. Used on Guess, Reveal, Create (the tray) and Landing.
+### Patterns not extracted into components
+
+These recur with the same classes but in fewer than three places, or are too tied to one screen to
+be worth a component:
+
+- **Clue-tray tile** (Create). A `ClueTile` look with drag handling: `shadow-sticker-lg` while held.
 - **Sticker chip.** A rotated (−2° to +2°) `rounded-pill` sticker with an accent fill and outline
   text, for moments like the round banner and the prompt reveal.
-- **Input.** `bg-inset`, 2px `border-hairline2`, `rounded-tile`, at least 16px text. On focus the
-  border turns to the context's accent (lime for guessing and search, cyan for solver chat, pink for
-  your name).
-- **Banner.** A full-width bar fixed to the top with dark `text-outline` text, colored by role:
-  orange for connection status (`role="status"`), coral for errors (`role="alert"`, tap to dismiss,
-  5 s), cyan for information (`role="status"`, tap to dismiss, 9 s).
-- **Toggle chip.** For pack pills and the avatar picker: idle is `border-hairline2` with muted text;
-  selected is a sticker in the role's accent, with `aria-pressed`.
+- **Avatar picker tile** (Join). Styled like a square `ToggleChip` but not one: idle
+  `border-hairline2`, selected a pink sticker, with `aria-pressed`.
 - **Score numerals.** `font-mono text-gold`, with thousands separators.
 
 ## Layout
@@ -219,28 +222,24 @@ These recur across screens with the same classes, and are part of the system:
 
 ## Known drift
 
-Measured on 2026-11-17. This is the to-do list for the tidy-up pass. Each item is the code departing
-from the system above, not the system being wrong.
+The v1.2.1 tidy resolved the drift measured on 2026-11-17:
+- `border-[2.5px]` ×22 became `border-sticker`.
+- The pink shadow became `shadow-sticker-pink` / `-pink-hover`.
+- No raw hex is left in components (the timer ring uses `stroke-*` tokens).
+- Labels are the eyebrow or the `Caption`.
+- The unused tokens are gone.
+- `hairline` and `hairline3` are folded into `hairline2`.
+- The focus rule is written down.
+- The text links, toggles, banners, clue tiles and bump buttons are components.
 
-1. **The sticker outline width isn't a token.** `border-[2.5px]` is written out 22 times. It should be
-   one utility (for example `border-sticker`).
-2. **The pink sticker shadow is hardcoded.** `shadow-[4px_4px_0_#FF3DA5]` and its 6px hover in the
-   `outline` button variant should be tokens like the outline-ink shadows.
-3. **Raw hex in components:** five occurrences (`#FF3DA5` ×2 from the item above, `#FF5468`,
-   `#BFFB4B`, `#2c1a42`). Each has a token.
-4. **Label styles vary.** Eyebrow-style labels use `tracking-[2px]` (13), `tracking-[1.5px]` (7) and
-   `tracking-widest` (2), and mono labels come in `text-xs` and `text-[10px]` (4). Settle on two
-   (the eyebrow, and a smaller caption) and make them tokens or components.
-5. **Unused tokens:** `screen`, `muted-2`, `lime-light`, `gold-light`, `mint-light`. Remove them, or
-   give them a job.
-6. **Three near-identical hairlines** (`hairline` `#2c1a42`, `hairline2` `#34204e`, `hairline3`
-   `#2a1842`), with 17 / 1 / 1 uses. `hairline2` is the real one. Fold the other two in, or document
-   when each is used.
-7. **Focus color varies by input** (lime, cyan, pink, by context). That's arguably intended (accent
-   by role), but it isn't written down anywhere else. Confirm the rule or pick one.
-8. **13 hand-styled `<button>` elements** outside `StickerButton`. Some are right as they are (emoji
-   picker cells, tray tiles, text links); the rest should become `StickerButton` or a named
-   pattern (toggle chip, text link).
-9. **The recurring patterns above** (clue tile, sticker chip, input, banner, toggle chip) are
-   repeated as class strings in several files. Extract the ones used three or more times into
-   `ui.tsx`.
+A before/after screenshot comparison of every screen showed only these changes: label tracking
+settling on 2px or 1.5px, the lobby's pack-group captions taking 1px less height each, and the
+two folded hairlines.
+
+What's left, deliberately:
+
+1. **The rare 3px borders**: the revealed-hint underline (`border-b-[3px]`) and the chat message
+   accent (`border-l-[3px]`). Each is a one-off emphasis, not a sticker.
+2. **2px stickers**: the guess feed's "new messages" pill and the landing page's avatar row use a
+   2px outline. They read as smaller stickers; make them `border-sticker` if that ever looks off.
+3. **The two Prompt-screen sticker chips** repeat their classes (two uses, one file).

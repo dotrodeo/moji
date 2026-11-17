@@ -8,7 +8,7 @@ import {
 import { MAX_EMOJIS, promptHasNumber, validateClue, type RoomView } from '@moji/shared';
 import type { GameClient } from '../useGame.js';
 import { EMOJI_CATS, type EmojiCat, type EmojiData, loadEmojiData } from '../data/emoji.js';
-import { Eyebrow, Panel, StickerButton, cn } from '../ui.js';
+import { cn, Eyebrow, Panel, StickerButton, ToggleChip } from '../ui.js';
 import { serverNow } from '../clock.js';
 
 export function ClueScreen({ game, view }: { game: GameClient; view: RoomView }) {
@@ -85,7 +85,7 @@ export function ClueScreen({ game, view }: { game: GameClient; view: RoomView })
               onClick={swap}
               disabled={swapping}
               aria-busy={swapping}
-              className="mt-1 font-mono text-xs uppercase tracking-[1.5px] text-muted hover:text-cyan disabled:opacity-50"
+              className="mt-1 font-mono text-xs uppercase tracking-eyebrow text-muted hover:text-cyan disabled:opacity-50"
             >
               🎲 stuck? swap prompt (
               {view.config.reshuffleCost > 0 ? `−${view.config.reshuffleCost} pts · ` : ''}
@@ -115,7 +115,7 @@ export function ClueScreen({ game, view }: { game: GameClient; view: RoomView })
           </div>
           <div
             className={cn(
-              'font-mono text-xs uppercase tracking-[2px]',
+              'font-mono text-xs uppercase tracking-eyebrow',
               atCap ? 'text-orange' : emojis.length > 0 ? 'text-mint' : 'text-muted',
             )}
           >
@@ -124,7 +124,7 @@ export function ClueScreen({ game, view }: { game: GameClient; view: RoomView })
               : `Your clue · ${emojis.length}/${MAX_EMOJIS}${emojis.length > 0 ? ' ✓' : ''}`}
           </div>
           {emojis.length > 1 && (
-            <div className="font-mono text-xs uppercase tracking-[2px] text-muted-3">
+            <div className="font-mono text-xs uppercase tracking-eyebrow text-muted-3">
               drag to reorder · tap to remove
             </div>
           )}
@@ -144,21 +144,17 @@ export function ClueScreen({ game, view }: { game: GameClient; view: RoomView })
           </div>
           <div className="flex flex-wrap gap-1.5">
             {EMOJI_CATS.map((c) => (
-              <button
+              <ToggleChip
                 key={c}
+                selected={!query && c === cat}
                 onClick={() => {
                   setCat(c);
                   setQuery('');
                 }}
-                className={cn(
-                  'rounded-pill border-[2.5px] px-3 py-1 text-sm transition-all',
-                  !query && c === cat
-                    ? 'border-outline bg-pink text-outline shadow-sticker-sm'
-                    : 'border-hairline2 text-muted hover:text-paper',
-                )}
+                className="px-3 py-1 text-sm"
               >
                 {c}
-              </button>
+              </ToggleChip>
             ))}
           </div>
           {!data ? (
@@ -350,7 +346,7 @@ function ClueTray({
               aria-label={`clue slot ${i + 1}: ${e}. Arrow keys move it, delete removes it.`}
               style={held ? { transform: `translate(${drag.dx}px, ${drag.dy}px) scale(1.1)` } : undefined}
               className={cn(
-                'absolute inset-0 flex touch-none select-none items-center justify-center rounded-tile border-[2.5px] border-outline bg-paper text-3xl',
+                'absolute inset-0 flex touch-none select-none items-center justify-center rounded-tile border-sticker border-outline bg-paper text-3xl',
                 held
                   ? 'cursor-grabbing shadow-sticker-lg'
                   : 'animate-moji-tilebob cursor-grab shadow-sticker-sm',
@@ -391,7 +387,7 @@ function TimerChip({ deadlineTs }: { deadlineTs: number | null }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-pill border-[2.5px] border-outline px-4 py-1.5 font-mono text-lg font-bold shadow-sticker-sm',
+        'inline-flex items-center rounded-pill border-sticker border-outline px-4 py-1.5 font-mono text-lg font-bold shadow-sticker-sm',
         danger ? 'bg-coral text-outline' : 'bg-gold text-outline',
       )}
     >

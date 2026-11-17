@@ -17,7 +17,7 @@ function packEmoji(view: RoomView, slug: string | undefined): string {
 function CategoryBadge({ view }: { view: RoomView }) {
   const cat = view.yourCategory ?? view.category;
   return (
-    <span className="inline-flex -rotate-2 items-center gap-2 rounded-pill border-[2.5px] border-outline bg-cyan px-4 py-1.5 font-mono text-sm font-bold uppercase tracking-[2px] text-outline shadow-sticker-sm">
+    <span className="inline-flex -rotate-2 items-center gap-2 rounded-pill border-sticker border-outline bg-cyan px-4 py-1.5 font-mono text-sm font-bold uppercase tracking-eyebrow text-outline shadow-sticker-sm">
       {packEmoji(view, cat?.slug)} {cat?.name ?? ''}
     </span>
   );
@@ -30,7 +30,7 @@ export function RoundIntro({ view }: { view: RoomView }) {
       <Eyebrow className="text-cyan">Round {view.roundNumber}</Eyebrow>
       <div className="my-4">
         {view.config.packMode === 'mixed' ? (
-          <span className="inline-flex -rotate-2 items-center gap-2 rounded-pill border-[2.5px] border-outline bg-lime px-4 py-1.5 font-mono text-sm font-bold uppercase tracking-[2px] text-outline shadow-sticker-sm">
+          <span className="inline-flex -rotate-2 items-center gap-2 rounded-pill border-sticker border-outline bg-lime px-4 py-1.5 font-mono text-sm font-bold uppercase tracking-eyebrow text-outline shadow-sticker-sm">
             🎁 Everyone gets a different pack
           </span>
         ) : (

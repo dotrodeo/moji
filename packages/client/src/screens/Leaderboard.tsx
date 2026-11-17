@@ -26,7 +26,7 @@ export function Leaderboard({ game, view }: { game: GameClient; view: RoomView }
       </div>
 
       <div className="mt-8 flex flex-col items-center gap-3">
-        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[2px] text-muted">
+        <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-eyebrow text-muted">
           <span className="h-2 w-2 animate-moji-pulse rounded-full bg-mint" />
           {isFinalRound ? 'Final results coming up' : 'Next round starts automatically'}
         </div>

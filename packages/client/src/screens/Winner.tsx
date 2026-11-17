@@ -3,7 +3,7 @@ import type { ScoreRow, RoomView } from '@moji/shared';
 import type { GameClient } from '../useGame.js';
 import { Confetti } from '../components/Confetti.js';
 import { Standings } from '../components/Standings.js';
-import { Avatar, Eyebrow, Panel, StickerButton, cn } from '../ui.js';
+import { Avatar, cn, Eyebrow, Panel, StickerButton, TextButton } from '../ui.js';
 
 export function Winner({
   game,
@@ -44,7 +44,7 @@ export function Winner({
           <div className="mt-10 flex items-end justify-center gap-3">
             <Plinth row={second} place={second?.rank ?? 2} heightClass="h-24" bg="bg-hairline2" crown={second?.rank === 1} />
             <Plinth row={first} place={first?.rank ?? 1} heightClass="h-36" bg="bg-gold" crown />
-            <Plinth row={third} place={third?.rank ?? 3} heightClass="h-16" bg="bg-hairline3" crown={third?.rank === 1} />
+            <Plinth row={third} place={third?.rank ?? 3} heightClass="h-16" bg="bg-hairline2" crown={third?.rank === 1} />
           </div>
 
           <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
@@ -53,9 +53,9 @@ export function Winner({
             </StickerButton>
             <ShareButton code={view.code} />
           </div>
-          <button onClick={onLeave} className="mt-4 text-sm text-muted hover:text-paper">
+          <TextButton onClick={onLeave} className="mt-4">
             ← leave to home
-          </button>
+          </TextButton>
           {!isHost && <p className="mt-2 text-sm text-muted">waiting for the host to rematch…</p>}
         </div>
 
@@ -96,7 +96,7 @@ function Plinth({
       <div className="font-mono text-sm text-gold">{row.totalScore.toLocaleString()}</div>
       <div
         className={cn(
-          'mt-2 flex w-full items-start justify-center rounded-t-tile border-[2.5px] border-outline pt-2 font-display text-2xl font-extrabold text-outline shadow-sticker-sm',
+          'mt-2 flex w-full items-start justify-center rounded-t-tile border-sticker border-outline pt-2 font-display text-2xl font-extrabold text-outline shadow-sticker-sm',
           bg,
           heightClass,
         )}

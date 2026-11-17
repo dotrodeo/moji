@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { GameClient } from '../useGame.js';
 import { AVATARS } from '../data/avatars.js';
-import { Eyebrow, Panel, StickerButton, cn } from '../ui.js';
+import { cn, Eyebrow, fieldClass, Panel, StickerButton, TextButton } from '../ui.js';
 
 const CODE_LEN = 5;
 
@@ -36,9 +36,9 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
 
   return (
     <div className="mx-auto max-w-xl animate-moji-pop px-4 py-12">
-      <button onClick={onBack} className="mb-4 text-sm text-muted hover:text-paper">
+      <TextButton onClick={onBack} className="mb-4">
         ← back
-      </button>
+      </TextButton>
       <Panel className="space-y-6 p-6 sm:p-8">
         <Eyebrow className="text-cyan">{joinMode ? 'JOIN A PARTY' : 'START A PARTY'}</Eyebrow>
         <h1 className="font-display text-3xl font-extrabold">
@@ -49,7 +49,7 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
           <div>
             <label
               htmlFor="join-code"
-              className="mb-2 block font-mono text-xs uppercase tracking-[2px] text-muted"
+              className="mb-2 block font-mono text-xs uppercase tracking-eyebrow text-muted"
             >
               Room code
             </label>
@@ -77,7 +77,7 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
                   <div
                     key={i}
                     className={cn(
-                      'flex h-14 flex-1 items-center justify-center rounded-tile border-[2.5px] font-mono text-3xl',
+                      'flex h-14 flex-1 items-center justify-center rounded-tile border-sticker font-mono text-3xl',
                       code[i] ? 'border-lime text-paper' : 'border-hairline2 text-muted-4',
                     )}
                   >
@@ -92,7 +92,7 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
         <div>
           <label
             htmlFor="join-name"
-            className="mb-2 block font-mono text-xs uppercase tracking-[2px] text-muted"
+            className="mb-2 block font-mono text-xs uppercase tracking-eyebrow text-muted"
           >
             Display name
           </label>
@@ -102,7 +102,7 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
             onChange={(e) => setName(e.target.value.slice(0, 20))}
             onKeyDown={(e) => e.key === 'Enter' && submit()}
             placeholder="your name"
-            className="w-full rounded-tile border-2 border-hairline2 bg-inset px-4 py-3 text-lg outline-none focus:border-pink"
+            className={cn(fieldClass('pink'), 'px-4 py-3 text-lg')}
             autoFocus={!joinMode}
           />
         </div>
@@ -110,7 +110,7 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
         <div>
           <div
             id="join-avatar"
-            className="mb-2 block font-mono text-xs uppercase tracking-[2px] text-muted"
+            className="mb-2 block font-mono text-xs uppercase tracking-eyebrow text-muted"
           >
             Pick your avatar
           </div>
@@ -121,7 +121,7 @@ export function Join({ mode, initialCode = '', game, onBack }: Props) {
                 onClick={() => setAvatar(a)}
                 aria-pressed={a === avatar}
                 className={cn(
-                  'flex aspect-square items-center justify-center rounded-tile border-[2.5px] text-2xl transition-transform hover:scale-105',
+                  'flex aspect-square items-center justify-center rounded-tile border-sticker text-2xl transition-transform hover:scale-105',
                   a === avatar
                     ? 'border-outline bg-pink shadow-sticker-sm'
                     : 'border-hairline2 bg-inset',
