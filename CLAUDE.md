@@ -156,6 +156,13 @@ Break these only on purpose.
   creation (`SOLO_ROOM_CONFIG`) — about four minutes, because it exists to be played once by
   somebody deciding in the first thirty seconds whether to keep going.
 
+## Design system
+
+The UI follows `docs/design-system.md` (reconstructed from the code in November 2026; the original
+design handoff is lost). Use its tokens and components rather than raw hex or one-off values, and
+pick an accent by its role (lime go, pink you/selection, cyan prompts/info, gold score, mint
+success, coral error, orange warning). Its **Known drift** list is the code not yet following it.
+
 ## Content
 
 Prompts and packs are documented in [`docs/content-guidelines.md`](docs/content-guidelines.md).
