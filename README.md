@@ -7,6 +7,8 @@ each other's.
   changing game rules, scoring, or anything the serializer touches.
 - [`docs/content-guidelines.md`](docs/content-guidelines.md) — how prompts and packs are stored, and
   what makes a prompt worth adding.
+- [`docs/design-system.md`](docs/design-system.md) — the "Retro Internet Party" visual system:
+  color roles, type, sticker shapes and shadows, motion, components.
 - [`docs/case-study-brief.md`](docs/case-study-brief.md) — a written-up tour of the project for
   external readers.
 
