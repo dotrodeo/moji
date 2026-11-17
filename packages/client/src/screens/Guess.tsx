@@ -3,7 +3,8 @@ import type { ActiveClueView, ChatMessage, GuessResult, PublicGuess, RoomView } 
 import { MAX_GUESS_LENGTH } from '@moji/shared';
 import type { GameClient } from '../useGame.js';
 import { TimerRing } from '../components/TimerRing.js';
-import { Avatar, Eyebrow, StickerButton, cn } from '../ui.js';
+import { BumpButton } from '../components/BumpButton.js';
+import { Avatar, Caption, ClueTile, cn, Eyebrow, fieldClass, StickerButton } from '../ui.js';
 
 export function GuessScreen({ game, view }: { game: GameClient; view: RoomView }) {
   const clue = view.activeClue;
@@ -55,12 +56,7 @@ export function GuessScreen({ game, view }: { game: GameClient; view: RoomView }
 
         <div className="flex max-w-3xl animate-moji-pop flex-wrap items-center justify-center gap-2 sm:gap-3">
           {clue.emojis.map((e, i) => (
-            <span
-              key={i}
-              className="flex h-14 w-14 items-center justify-center rounded-tile border-[2.5px] border-outline bg-paper text-3xl shadow-sticker sm:h-20 sm:w-20 sm:text-5xl"
-            >
-              {e}
-            </span>
+            <ClueTile key={i} emoji={e} size="lg" />
           ))}
         </div>
 
@@ -127,9 +123,9 @@ function AuthorBanner({ clue, guessing }: { clue: ActiveClueView; guessing: bool
         : 'everybody got it — nice clue';
   return (
     <div className="mt-6 flex flex-col items-center gap-2">
-      <p className="font-mono text-xs uppercase tracking-[1.5px] text-muted">your clue</p>
+      <p className="font-mono text-xs uppercase tracking-eyebrow text-muted">your clue</p>
       <p className="font-display text-2xl font-extrabold text-paper">{clue.answer}</p>
-      <p className="font-mono text-xs uppercase tracking-[1.5px] text-muted">{status}</p>
+      <p className="font-mono text-xs uppercase tracking-eyebrow text-muted">{status}</p>
       {clue.bumps > 0 && (
         <span className="rounded-pill border-2 border-gold px-3 py-0.5 font-display text-sm font-extrabold text-gold">
           👏 ×{clue.bumps}
@@ -149,7 +145,7 @@ function SolvedBanner({ clue, onBump }: { clue: ActiveClueView; onBump: () => vo
   const stillGuessing = Math.max(0, clue.eligibleCount - clue.solvedCount);
   return (
     <div className="mt-6 flex animate-moji-pop flex-col items-center gap-3">
-      <div className="flex items-center gap-3 rounded-sticker border-[2.5px] border-outline bg-mint px-4 py-2 text-outline shadow-sticker">
+      <div className="flex items-center gap-3 rounded-sticker border-sticker border-outline bg-mint px-4 py-2 text-outline shadow-sticker">
         <span className="font-display text-lg font-extrabold">got it!</span>
         <span className="rounded-pill bg-outline px-2.5 py-0.5 font-mono text-sm text-mint">
           +{clue.yourSolve?.points ?? 0}
@@ -158,32 +154,16 @@ function SolvedBanner({ clue, onBump }: { clue: ActiveClueView; onBump: () => vo
 
       <p className="font-display text-2xl font-extrabold text-paper">{clue.answer}</p>
 
-      <p className="font-mono text-xs uppercase tracking-[1.5px] text-muted">
+      <p className="font-mono text-xs uppercase tracking-eyebrow text-muted">
         {stillGuessing > 0
           ? `${stillGuessing} still guessing…`
           : 'everybody got it — nice clue'}
       </p>
 
-      <button
-        type="button"
-        onClick={onBump}
-        disabled={!clue.youCanBump}
-        className={cn(
-          'flex items-center gap-2 rounded-pill border-[2.5px] px-4 py-1.5 font-display text-sm font-extrabold transition-all',
-          'hover:-translate-y-0.5 disabled:pointer-events-none',
-          clue.youBumped
-            ? 'border-outline bg-gold text-outline shadow-sticker-sm'
-            : 'border-gold text-gold hover:bg-gold hover:text-outline',
-        )}
-      >
-        👏 {clue.youBumped ? 'bumped' : 'bump this clue'}
-        {clue.bumps > 0 && (
-          <span className="font-mono text-xs opacity-80">×{clue.bumps}</span>
-        )}
-      </button>
-      <p className="-mt-1 font-mono text-[10px] uppercase tracking-[1.5px] text-muted-3">
+      <BumpButton clue={clue} onBump={onBump} wide />
+      <Caption tone="faint" className="-mt-1">
         a bump pays {clue.authorName} +50
-      </p>
+      </Caption>
     </div>
   );
 }
@@ -424,9 +404,9 @@ function ChatInput({
     <div className="border-t border-hairline2 p-3">
       <div className="mb-1.5 flex items-center gap-1.5">
         <span className="h-2 w-2 rounded-full bg-cyan" />
-        <span className="font-mono text-[10px] uppercase tracking-[1.5px] text-cyan">
+        <Caption tone="cyan">
           solvers only · hidden from the rest
-        </span>
+        </Caption>
       </div>
       <div className="flex gap-2">
         <input
@@ -437,7 +417,7 @@ function ChatInput({
           placeholder={disabled ? 'chat closes with the clue…' : 'say something…'}
           aria-label="Message the other players who solved it"
           maxLength={200}
-          className="w-full rounded-tile border-2 border-cyan/40 bg-inset px-4 py-2.5 outline-none focus:border-cyan disabled:opacity-50"
+          className={cn(fieldClass('cyan'), 'px-4 py-2.5')}
         />
         <StickerButton variant="cyan" onClick={send} disabled={disabled} aria-label="send message">
           ↑
@@ -503,7 +483,7 @@ function GuessInput({
           placeholder={disabled ? 'get ready…' : 'type your guess…'}
           aria-label="Your guess"
           maxLength={MAX_GUESS_LENGTH}
-          className="w-full rounded-tile border-2 border-hairline2 bg-inset px-4 py-2.5 outline-none focus:border-lime disabled:opacity-50"
+          className={cn(fieldClass('lime'), 'px-4 py-2.5')}
           ref={inputRef}
         />
         <StickerButton variant="lime" onClick={send} disabled={disabled} aria-label="send guess">

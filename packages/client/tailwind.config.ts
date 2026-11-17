@@ -11,34 +11,39 @@ export default {
     extend: {
       colors: {
         ink: '#100619',
-        screen: '#15091f',
         panel: '#1a0d2c',
         panel2: '#1d0f30',
         inset: '#120720',
         outline: '#160826',
-        hairline: '#2c1a42',
         hairline2: '#34204e',
-        hairline3: '#2a1842',
         pink: '#FF3DA5',
         'pink-light': '#FF8FC8',
         cyan: '#29D6FF',
         'cyan-light': '#7FE6FF',
         lime: '#BFFB4B',
-        'lime-light': '#D2FB7E',
         gold: '#FFD23F',
-        'gold-light': '#FFD27A',
         mint: '#36E5A0',
-        'mint-light': '#8FF0C8',
         coral: '#FF5468',
         orange: '#FFB02E',
         paper: '#FFF1FA',
         'text-2': '#D6C6EC',
         'text-3': '#C9B8E8',
         muted: '#B79FD4',
-        'muted-2': '#9d86bd',
         'muted-3': '#8a72ab',
         'muted-4': '#7c64a0',
         'muted-5': '#5a3c78',
+      },
+      // Two label styles (docs/design-system.md): the eyebrow, and a smaller caption.
+      fontSize: {
+        caption: '10px',
+      },
+      letterSpacing: {
+        eyebrow: '2px',
+        caption: '1.5px',
+      },
+      // The sticker outline: every sticker (button, tile, avatar, chip) uses it.
+      borderWidth: {
+        sticker: '2.5px',
       },
       fontFamily: {
         display: ['"Bricolage Grotesque"', '"Noto Color Emoji"', 'system-ui', 'sans-serif'],
@@ -57,6 +62,9 @@ export default {
         'sticker-lg': '5px 5px 0 #160826',
         'sticker-hover': '6px 6px 0 #160826',
         'sticker-press': '1px 1px 0 #160826',
+        // The secondary (outline) button's shadow, in brand pink.
+        'sticker-pink': '4px 4px 0 #FF3DA5',
+        'sticker-pink-hover': '6px 6px 0 #FF3DA5',
       },
       keyframes: {
         // Entry animations use scale only (never opacity:0) per the handoff.

@@ -11,6 +11,7 @@ import { RevealScreen } from './screens/Reveal.js';
 import { Leaderboard } from './screens/Leaderboard.js';
 import { Winner } from './screens/Winner.js';
 import { DealingSolo, JoiningNextRound, OpenElsewhere, SplashScreen } from './screens.js';
+import { Banner } from './ui.js';
 
 type PreGameRoute = 'landing' | 'create' | 'join' | 'solo';
 
@@ -148,30 +149,17 @@ export default function App() {
   return (
     <div className="min-h-screen">
       {connectionNotice && (
-        <div
-          role="status"
-          className="fixed inset-x-0 top-0 z-20 bg-orange py-1 text-center font-mono text-xs uppercase tracking-[2px] text-outline"
-        >
-          {connectionNotice}
-        </div>
+        <Banner tone="status">{connectionNotice}</Banner>
       )}
       {notice && !error && (
-        <div
-          role="status"
-          onClick={clearNotice}
-          className="fixed inset-x-0 top-0 z-30 cursor-pointer bg-cyan px-4 py-2 text-center text-sm font-semibold text-outline"
-        >
+        <Banner tone="info" onClick={clearNotice}>
           {notice}
-        </div>
+        </Banner>
       )}
       {error && (
-        <div
-          role="alert"
-          onClick={clearError}
-          className="fixed inset-x-0 top-0 z-30 cursor-pointer bg-coral px-4 py-2 text-center text-sm font-semibold text-outline"
-        >
+        <Banner tone="error" onClick={clearError}>
           {error}
-        </div>
+        </Banner>
       )}
       {render()}
     </div>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Pack, Player, RoomView } from '@moji/shared';
 import type { GameClient } from '../useGame.js';
-import { Avatar, Eyebrow, Panel, Segmented, StickerButton, cn } from '../ui.js';
+import { Avatar, Caption, cn, Eyebrow, Panel, Segmented, StickerButton, TextButton, ToggleChip } from '../ui.js';
 
 const ROUND_OPTS = [3, 5, 8];
 const TIMER_OPTS = [20, 30, 45];
@@ -122,7 +122,7 @@ export function LobbyScreen({ game, view }: { game: GameClient; view: RoomView }
                     <div key={group}>
                       {/* Kept even when it repeats a lone pack's name ("Video Games"):
                           without it that pill reads as belonging to the group above. */}
-                      <Eyebrow className="mb-1 text-[10px] text-muted">{group}</Eyebrow>
+                      <Caption className="mb-1">{group}</Caption>
                       <div className="flex flex-wrap gap-1.5">
                         {packs.map((pack) => (
                           <PackPill
@@ -142,7 +142,7 @@ export function LobbyScreen({ game, view }: { game: GameClient; view: RoomView }
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 border-t border-hairline pt-3">
+          <div className="flex flex-col gap-2 border-t border-hairline2 pt-3">
             <StickerButton
               variant={me?.ready ? 'mint' : 'cyan'}
               className="w-full"
@@ -172,7 +172,7 @@ function PlayerCard({ player, isYou }: { player: Player; isYou: boolean }) {
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-card border-[2.5px] p-3 transition-all',
+        'flex items-center gap-3 rounded-card border-sticker p-3 transition-all',
         player.ready ? 'border-mint bg-mint/10' : 'border-hairline2 bg-panel2',
         isYou && 'ring-2 ring-pink ring-offset-2 ring-offset-ink',
         dim && 'opacity-50',
@@ -208,12 +208,12 @@ function RoomCode({ code }: { code: string }) {
   return (
     <div className="flex items-center justify-between rounded-tile border border-hairline2 bg-inset px-4 py-3">
       <div>
-        <div className="font-mono text-xs uppercase tracking-[2px] text-muted">Room code</div>
+        <div className="font-mono text-xs uppercase tracking-eyebrow text-muted">Room code</div>
         <div className="font-mono text-3xl font-bold tracking-widest text-lime">{code}</div>
       </div>
-      <button onClick={copy} className="text-sm text-cyan hover:text-cyan-light">
+      <TextButton tone="cyan" onClick={copy}>
         {copied ? 'Copied!' : 'Copy link'}
-      </button>
+      </TextButton>
     </div>
   );
 }
@@ -251,18 +251,14 @@ function PackPill({
   onSelect: () => void;
 }) {
   return (
-    <button
+    <ToggleChip
+      selected={selected}
+      accent="cyan"
       disabled={disabled}
       onClick={onSelect}
-      aria-pressed={selected}
-      className={cn(
-        'rounded-pill border-[2.5px] px-3 py-1.5 text-sm transition-all disabled:opacity-50',
-        selected
-          ? 'border-outline bg-cyan text-outline shadow-sticker-sm'
-          : 'border-hairline2 text-muted hover:text-paper',
-      )}
+      className="px-3 py-1.5 text-sm"
     >
       {pack.emoji} {pack.name}
-    </button>
+    </ToggleChip>
   );
 }
