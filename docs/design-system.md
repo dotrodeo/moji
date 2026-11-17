@@ -9,11 +9,6 @@ this document and the code disagree, the code wins, and this file should be fixe
 Places where the code still doesn't follow the system are listed under [Known drift](#known-drift)
 at the end.
 
-**Visual version:** [Moji Design System](https://claude.ai/artifact/95jnYsSezSBu17CmiNhXEC) on
-claude.ai shows the same system with colour swatches, type specimens and the real components
-rendered live (built from `main@1824399`). It is private: it opens only for people the owner has
-shared it with. It doesn't update itself; when tokens or `ui.tsx` change, rebuild it.
-
 ## Principles
 
 1. **Stickers on a dark screen.** Interactive and celebratory elements look like die-cut stickers:
